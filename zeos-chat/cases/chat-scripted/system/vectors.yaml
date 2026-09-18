@@ -1,0 +1,61 @@
+# The interrupt vector table -- the thing a chat loop cannot do.
+#
+# In a chatbot the *user* is the smoke detector. A message arriving mid-answer is a
+# vector firing, not a race condition handled in application code, and that is the whole
+# inversion: nothing in any descriptor body mentions cancellation, and no code polls to
+# find out whether something has arrived.
+#
+# **A deadline here is a record, not a promise.** ZEOS borrows the RTOS vocabulary for
+# its scheduling model, not for its timing. What it guarantees is that the most urgent
+# runnable job dispatches next, and that preemption lands within one decode step -- both
+# measured in token boundaries. It does not guarantee wall-clock response: the kernel
+# reads no clock, deadlines are detected after the fact as faults rather than enforced,
+# and a decode step takes as long as the model underneath takes. `deadline: 500ms` states
+# the budget this binding is *meant* to meet and gives the journal something to measure
+# against. It does not make the handler arrive in time.
+
+- vector: user-spoke
+  source: user.arrivals
+  handler: new-message
+  priority: 10
+  # `queue`, not `coalesce`. Since #77 a pipe remembers where each write ended, so N
+  # messages arriving behind a busy handler become N handlers with N payloads, in order.
+  # Coalescing is right for a level sensor, where only the latest value matters. It is
+  # wrong for a person: the third message is not a restatement of the first.
+  policy: queue
+  # **No `min_interval`, deliberately.** Storm control is for a device that chatters, and
+  # a person typing cannot. What settled it is that the unit would not mean what it says:
+  # `min_interval` is written in wall-clock units but measured against the kernel's clock,
+  # which charges one millisecond per token boundary. Under a tape those roughly coincide;
+  # under a real model a command costs seconds of wall clock and one millisecond of kernel
+  # clock, so `min_interval: 200ms` would actually mean "two hundred decodes" -- and a
+  # person who typed twice in a minute could still be throttled.
+  #
+  # That is worse than a deadline being unenforced. A deadline is recorded and never
+  # acted on, so its units are decorative; a throttle *defers a firing*, so a unit in the
+  # wrong clock changes behaviour. A live run of this case showed exactly that: a message
+  # 205ms after the previous one was throttled and delivered late.
+  deadline: 500ms
+
+- vector: user-cancelled
+  source: user.cancel
+  handler: cancel
+  # Above everything, including the message handler: a person who says stop while typing
+  # a follow-up means stop.
+  priority: 5
+  policy: queue
+  deadline: 100ms
+
+- vector: mail-requested
+  source: mail.requests
+  handler: send-email
+  # Above the long job and below the conversation, matching the descriptor's own priority:
+  # sending mail is not urgent, but it should not queue behind research that may run for
+  # minutes. Below `new-message`, because a person who types while mail is going out is
+  # still the more urgent of the two.
+  priority: 40
+  # `queue`, for the same reason the user's messages queue: two requests to send are two
+  # letters, and coalescing them would silently drop one. A consequential effect is the
+  # last place to be clever about deduplication.
+  policy: queue
+  deadline: 2s

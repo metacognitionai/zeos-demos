@@ -1,0 +1,200 @@
+# The conversation's wiring.
+#
+# Ring and principal are assigned here, by the kernel, from provenance -- never claimed
+# by the content that arrives (MP §4). Everything on this list is ring 2 at stage 1:
+# nothing in this case has yet touched the outside world. `web.results` at ring
+# EXTERNAL, and the endorsers that make a job able to act after reading it, arrive with
+# stage 3.
+#
+# There are three kinds of pipe and this case uses all three. An ordinary pipe carries a
+# *message*: appended, read once, gone. An actuator -- declared by `world_object:` --
+# carries a *value*: it latches and becomes world state. A sink -- declared by
+# `sink: true` -- carries a *history*: appended, and drained by the driver for the
+# world. A pipe cannot be both an actuator and a sink; the loader rejects that.
+
+# -- the person ---------------------------------------------------------------
+#
+# **Two pipes carry one message, and this is a correction to the design note rather
+# than a convenience.** ZEOS-Chat §2.1 binds `converse.stdin` to `user.messages` and
+# §2.2 fires the `user-spoke` vector from that same pipe. Those two cannot both hold:
+# `Kernel._dispatch_handler` calls `take_write()` on the vector's source, so the firing
+# *takes* the message and hands it to the handler as its payload. The conversation is
+# woken by the same write, finds the pipe empty when it retries its read, and parks
+# again having seen nothing. One pipe, and the message reaches the handler and nobody
+# else.
+#
+# So the content and the interrupt are separate lines. `user.messages` carries the words
+# and is what the conversation reads. `user.arrivals` is a doorbell: the adapter writes a
+# single fixed token to it for every message, and that token says only *that* somebody
+# spoke. The message itself is never copied, so it exists in exactly one place and the
+# two lines cannot disagree -- which they could if the adapter wrote the text twice and
+# one of the two deliveries were refused for want of room.
+#
+# This is the shape coop-count already uses, with `keys.interrupt` carrying the event and
+# `keys.number` carrying the content the handler reads. What is unusual about a
+# conversation is only that the same text would serve as both, which is what makes the
+# duplication tempting.
+#
+# Which of the two mechanisms matters on a given message is then the *kernel's* decision
+# and not the adapter's: if the conversation is parked it simply wakes and answers, and if
+# it is mid-answer the handler preempts it at priority 10. Nothing in the adapter has to
+# ask "is it busy?", which is exactly the application-level branch a descriptor tree
+# exists to remove.
+#
+# `capacity` is a hard limit at both ends, and sizing it by guesswork produces a fault at
+# the worst possible moment. A device delivery that does not fit is refused whole to the
+# driver rather than truncated (#58), so a long pasted message needs a roomy inbound
+# pipe; a job's write larger than the whole pipe is a capability fault rather than a wait
+# (#75), so a long reply needs a roomy sink.
+
+- name: user.messages
+  ring: TRUSTED
+  principal: user
+  device: true
+  capacity: 8192
+
+# The doorbell. Small on purpose: what arrives is the fact that somebody spoke, and the
+# fact has no arguments. It still has to be large enough to hold several unanswered rings
+# at once, because `user-spoke` declares `policy: queue` and a throttle defers rather
+# than discards -- three messages typed in quick succession are three writes waiting here
+# for three firings.
+- name: user.arrivals
+  ring: TRUSTED
+  principal: user
+  device: true
+  capacity: 64
+
+# The reflex line. A write here is not data for anyone to read -- it is an interrupt, and
+# the handler it fires does its whole work in its frontmatter. Small on purpose: what
+# arrives is the fact that somebody said stop, and the fact has no arguments.
+- name: user.cancel
+  ring: TRUSTED
+  principal: user
+  device: true
+  capacity: 64
+
+# The way out. A sink is drained by the driver after every tick and handed to the
+# `on_drain` callback, which in the web application is the reply arriving in the browser.
+# Before sinks existed (C1) the only outbound path was an actuator, which latches and so
+# holds a current value rather than a history -- no use at all for a conversation, where
+# every turn must survive the next one.
+- name: user.replies
+  ring: TRUSTED
+  principal: user
+  sink: true
+  capacity: 8192
+
+# -- the actuators ------------------------------------------------------------
+#
+# **One actuator, one world object.** An actuator write latches into exactly one object,
+# so one pipe cannot maintain two of them -- which is why there are two pipes here and
+# not one `actuators.session`. ZEOS-Chat v0.2 declared `writes: [session.topic]` on
+# `converse` with no actuator to write it through, and mapped `session.pending_task` as
+# well, which nothing in the case could set. The topic is `converse`'s to write; the
+# pending task belongs to `deep-research`, through an actuator of its own.
+
+- name: actuators.topic
+  ring: TRUSTED
+  principal: device
+  world_object: session.topic
+  capacity: 256
+
+- name: actuators.task
+  ring: TRUSTED
+  principal: device
+  world_object: session.pending_task
+  capacity: 256
+
+# The doorbell for the mail service, and the reason `send-email` is reachable at all.
+#
+# `converse` declares it as a child and the ABI declares a `spawn` verb, but a parsed
+# `spawn` does not carry its target to the kernel's spawn path, so nothing can dispatch a
+# service that way yet. A *vector* can: a handler is named in the vector table and
+# dispatched by the kernel, which is how `new-message` and `cancel` already run. So the
+# request arrives here and `mail-requested` fires the service.
+#
+# Two pipes again, for the same reason as `user.messages` and `user.arrivals` above, and
+# it is worth saying why the obvious shortcut does not work. A vector firing *does* carry
+# the written text to its handler as a payload -- but the payload is injected at job start,
+# and a seat reports an injection as an arrival only once the job has spoken. Before that
+# it is still the prompt. A model in the seat reads it either way; a Python program
+# watching its arrivals never sees it, and `send-email` wrote "nothing was asked for".
+#
+# So the content goes on a pipe the job *reads*, and the doorbell only says that somebody
+# asked. Same shape, same reason: one line carries the fact, the other the words.
+- name: mail.requests
+  ring: TRUSTED
+  principal: user
+  device: true
+  capacity: 64
+
+# What to send. Read by `send-email`, and roomy because it holds a subject and a whole
+# transcript.
+- name: mail.letters
+  ring: TRUSTED
+  principal: user
+  device: true
+  capacity: 4096
+
+# The consequential one. Simulated unless `MAIL_LIVE` is set: the write latches into
+# `mail.sent` and the demo shows what would have been sent. A real send sits behind a flag,
+# because the point of the capability check is watching it refuse an effect that would
+# otherwise happen -- and because a demonstration that mails somebody on first run is not
+# one anybody wants twice.
+#
+# An actuator rather than a sink, and that is load-bearing. A sink is a history the driver
+# empties; an actuator is a value that latches into world state, and `mail.sent` *is* the
+# world changing. The adapter that transmits watches for the latch.
+- name: mail.outbox
+  ring: TRUSTED
+  principal: device
+  world_object: mail.sent
+  capacity: 1024
+
+# -- the model ----------------------------------------------------------------
+#
+# A job reaches the model the way it reaches any other device: it writes a request and
+# blocks on a reply. Core §4.2 says a tool call *is* a pipe write plus a blocking read and
+# that the job is descheduled and costs nothing while it waits, and this is that, with the
+# model as the tool.
+#
+# What it buys is not a faster model but an awake kernel. A job parked on a reply is
+# `JobBlocked`: the scheduler runs whatever else is runnable, a vector still fires, a
+# reflex still preempts. A seat that calls the model from inside its decode cannot offer
+# any of that, because the whole kernel is inside the call.
+#
+# A pair per descriptor rather than one shared pair. Two jobs may be waiting at once --
+# that is the entire point of the long job running under the conversation -- and a reply
+# has to find the one that asked. Routing by pipe needs no correlation id: the pipe is the
+# address.
+#
+# The requests are sinks, drained by the driver. The replies are device pipes, delivered
+# by it. Both directions are ordinary.
+
+- name: llm.converse.requests
+  ring: TRUSTED
+  principal: device
+  sink: true
+  capacity: 8192
+
+- name: llm.converse.replies
+  ring: TRUSTED
+  principal: device
+  device: true
+  capacity: 8192
+
+# The long job's own pair. Note the ring: what comes back is still TRUSTED here, because
+# the model is being asked to compose, not to fetch. When stage 3 adds retrieval it is
+# `web.results` at EXTERNAL that carries the outside world in, and the demotion that
+# follows is the whole story -- a model's own words are not what makes a job dirty.
+- name: llm.research.requests
+  ring: TRUSTED
+  principal: device
+  sink: true
+  capacity: 8192
+
+- name: llm.research.replies
+  ring: TRUSTED
+  principal: device
+  device: true
+  capacity: 8192

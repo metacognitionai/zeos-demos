@@ -1,0 +1,39 @@
+# The event schedule: what the person does, and when. One line per delivery, in
+# nanoseconds of virtual time, sorted stably on load so two events at the same instant
+# keep their file order. That ordering is load-bearing below.
+#
+# A tick is one token boundary and the driver charges it a millisecond, so these times
+# read as decodes: the message at 5ms lands almost immediately, and the one at 210ms
+# lands roughly 210 decodes in -- part way through the reply the first one produced.
+#
+# Every message is two deliveries and only one of them carries the words: `user.messages`
+# takes the message, and `user.arrivals` takes a single token saying that somebody spoke.
+# See system/pipes.yaml for why the interrupt line is a doorbell rather than a second
+# copy. Content first, doorbell second: the conversation must find the message on its pipe
+# when it looks, and the ring fires the handler that takes the machine away from it.
+
+# The opening message. The conversation is parked on `read stdin;`, so this both wakes it
+# and fires the handler. The handler runs first -- priority 10 against 60 -- says its one
+# line and exits, and only then does the conversation get the machine and the message.
+{"at_ns": 5000000, "pipe": "user.messages", "text": "can you help me plan a week in Kyoto in November"}
+{"at_ns": 5000000, "pipe": "user.arrivals", "text": "message"}
+
+# Barge-in. The conversation is now mid-answer -- several paragraphs into a reply it is
+# writing one at a time -- and this is the case's whole reason for existing: the message
+# is not queued until the answer finishes, it fires a vector that preempts the answer at
+# the next token boundary.
+#
+# 210ms because that is where the tape still is: the conversation is part way through the
+# fifth paragraph of its answer. The number is a property of this tape's length and
+# nothing else, so a run against a live model lands it somewhere else entirely -- a model
+# that answers in two paragraphs has already parked by then. Scheduled barge-in is a
+# property of the schedule; the web application gets the real thing, where a person
+# interrupts whenever they like.
+{"at_ns": 210000000, "pipe": "user.messages", "text": "actually make it Osaka instead"}
+{"at_ns": 210000000, "pipe": "user.arrivals", "text": "message"}
+
+# The reflex. No content and no arguments -- the fact that somebody said stop is the whole
+# payload. It outranks everything, and its effect is entirely in `cancel.md`'s
+# `on_complete`: the half-written answer is thrown away and a fresh conversation starts,
+# which finds the topic already on its status line and parks waiting to be spoken to.
+{"at_ns": 330000000, "pipe": "user.cancel", "text": "stop"}

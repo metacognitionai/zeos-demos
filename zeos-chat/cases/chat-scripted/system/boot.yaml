@@ -1,0 +1,12 @@
+# One job starts at boot: the conversation.
+#
+# The loader would infer this list anyway -- the two handlers are vector-dispatched and
+# the two services are children, so `converse` is the only thing in `goals/` that is
+# neither. It is written out because the inference is conservative by design and a reader
+# should not have to reconstruct it.
+#
+# That this is a list of one is the single-tenancy limit, visible in the configuration.
+# `pipes:` in frontmatter is literal names and `Kernel.spawn` takes no binding overrides
+# (C3), so a second conversation would be a second job bound to the same `user.messages`.
+# Until per-session instancing exists, one conversation is what this case can hold.
+- converse

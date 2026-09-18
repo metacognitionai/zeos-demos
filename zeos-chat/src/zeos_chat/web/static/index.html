@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZEOS Chat</title>
+<style>/*CSS*/</style>
+</head>
+<body>
+
+<header class="bar">
+  <!--
+    Animated Metacognition logo.
+  -->
+  <svg class="logo" viewBox="0 0 88 88" role="img" aria-label="Metacognition AI">
+    <rect class="paddle left" x="12" y="2" width="9" height="67"/>
+    <rect class="ball" x="37" y="31" width="12" height="13"/>
+    <rect class="paddle right" x="66" y="18" width="9" height="68"/>
+  </svg>
+  <div class="titles">
+    <h1>ZEOS Chat</h1>
+    <!--
+      The byline explains the demonstration.
+    -->
+    <p class="sub">Demonstration of a chatbot built as a <strong>descriptor tree</strong>: a few small text
+      files, one per behaviour, which the ZEOS kernel runs as programs. <code>converse</code>
+      is the resident conversation <strong>blocking on read</strong>, costing nothing until
+      you type. Speak while it is answering and an <strong>interrupt</strong> preempts the
+      conversation at a <strong>token boundary</strong>, between one word and the next;
+      <strong>stop</strong> fires at high <strong>priority</strong> to take the machine off
+      whatever it's doing. The model is a <strong>device on a pipe</strong>, so the kernel
+      keeps running while it thinks. The conversation itself lives in a
+      <strong>context window</strong>, and the <strong>pager</strong> evicts the coldest
+      part to a <strong>stub</strong> if it gets too long. Press Email and a
+      <strong>vector</strong> dispatches a separate job whose single
+      <strong>actuator</strong> write is the only effect that leaves the machine — and so
+      the only one the kernel can <strong>refuse</strong>, on authority or on
+      <strong>integrity</strong> if that job has read something untrusted. On the right is
+      the kernel's <strong>journal</strong>: what it did, not what was said.</p>
+  </div>
+  <button id="panel-toggle" class="ghost" aria-expanded="false">Kernel</button>
+</header>
+
+<main>
+  <section class="conversation" aria-live="polite">
+    <ol id="messages"></ol>
+    <p id="empty" class="empty">The conversation is parked on <code>read stdin;</code> — it
+      runs no forward passes until you say something.</p>
+  </section>
+
+  <aside id="panel" class="panel" hidden>
+    <h2>Journal</h2>
+    <p class="note">What the kernel did, as it recorded it. Not the transcript: a
+      structural claim is only checkable against structure.</p>
+    <ol id="kernel"></ol>
+  </aside>
+</main>
+
+<form id="composer" class="composer">
+  <textarea id="input" rows="1" placeholder="Say something…" autocomplete="off"></textarea>
+  <!--
+    A click is a device event. It writes `mail.requests`, the `mail-requested` vector
+    dispatches `send-email` at priority 40, and that job's write to `mail.outbox` is the
+    one consequential effect in the system -- the one that can be refused.
+  -->
+  <button id="email" type="button" class="mail" disabled title="Writes mail.outbox">Email</button>
+  <button id="stop" type="button" class="stop" hidden title="Fires the cancel reflex at priority 5">Stop</button>
+  <button id="send" type="submit" class="send">Send</button>
+</form>
+
+<script>/*JS*/</script>
+</body>
+</html>

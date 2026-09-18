@@ -1,0 +1,21 @@
+# Session state, seeded so the objects exist from the start.
+#
+# Seeding does not itself produce a status region: the driver writes these straight into
+# the store before any job is spawned, so nothing is alive to receive the refresh. A
+# job's region appears when it is spawned, because `_start_job` seeds every object the
+# descriptor maps -- which is what lets a conversation begin able to see the state it
+# declared it depends on, rather than waiting for a change that may never come.
+#
+# These three are the whole of what the system remembers between turns. Everything else
+# is transcript, and transcript is the pager's to take.
+initial:
+  # What we are actually working on. `converse` maps this as a status region, so the
+  # kernel keeps it at the hot tail and rewrites it in place; the model does not have to
+  # keep it alive in disposable working.
+  session.topic: "nothing yet"
+  # What a background job is doing, if one is. Written by `deep-research` through its own
+  # actuator, read by `converse` through a status region -- which is how a conversation
+  # knows about work it dispatched without holding a handle to it.
+  session.pending_task: "none"
+  # The outbox. Simulated at stage 1: the value is what *would* have been sent.
+  mail.sent: "nothing sent"

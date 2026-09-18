@@ -1,0 +1,10 @@
+runs/
+.env
+__pycache__/
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Letters the desktop transport writes. A record, not source.
+outbox/
