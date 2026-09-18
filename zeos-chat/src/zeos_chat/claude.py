@@ -26,16 +26,39 @@ from anthropic import Anthropic
 from zeos_chat.llm import Ask
 
 __all__ = [
+    "ANSWER_TOKENS",
     "EVICTED",
     "ClaudeModel",
     "DEFAULT_MODEL",
     "PARAGRAPH_SEPARATOR",
+    "SHAPES",
+    "THOROUGH",
     "Refused",
+    "TRUNCATED",
     "turns_of",
     "without_persona",
 ]
 
 DEFAULT_MODEL = "claude-opus-5"
+
+#: How much the model may spend on one answer, by descriptor.
+#:
+#: This budget covers the model's *thinking* as well as the words it writes, which is the
+#: whole reason it is here. At 2048 the long job spent the entire allowance reasoning and
+#: emitted no text at all -- `stop_reason: max_tokens`, one `thinking` block, zero
+#: characters -- and the empty-answer fallback below turned that into "I have nothing to
+#: add." The conversation was quietly hitting the same ceiling and ending replies in the
+#: middle of a sentence.
+#:
+#: So the job that is told to answer thoroughly gets room to, and the one told to be brief
+#: gets enough that being brief is its choice rather than the cap's.
+ANSWER_TOKENS: dict[str, int] = {"deep-research": 16384}
+DEFAULT_ANSWER_TOKENS = 4096
+
+#: What a person is told when the answer stopped because the budget ran out rather than
+#: because it was finished. An answer that ends mid-sentence with no explanation reads as
+#: a bug in the conversation; saying so costs one line and is true.
+TRUNCATED = "[cut off — the answer reached its length limit]"
 
 #: How the model is asked to separate paragraphs, so the job can write them one at a time.
 #: A separator rather than a blank line because the seat splits on whitespace: a newline
@@ -51,6 +74,19 @@ Do not number them, do not use headings, and do not use the character {separator
 anything else. Write plainly and stop when you have answered; nobody is paying by the
 word.\
 """
+
+
+#: The long job's shape, because the default one argues with its persona. `deep-research`
+#: is told to take the time it needs and that a short answer wastes the arrangement; a
+#: system prompt that then demands three short paragraphs and says nobody is paying by the
+#: word is handing it two instructions with no way to satisfy both.
+THOROUGH = """Answer as fully as the question deserves, in paragraphs separated by the character
+{separator}. Do not number them, do not use headings, and do not use the character
+{separator} for anything else. Length is not a virtue in itself, but this is the long job:
+say what is actually worth knowing rather than what fits in a turn."""
+
+#: The shape each descriptor is given, defaulting to ``SHAPE``.
+SHAPES: dict[str, str] = {"deep-research": THOROUGH}
 
 
 #: What a stubbed-out stretch of window becomes when it is read back as a turn. The pager
@@ -151,7 +187,8 @@ class ClaudeModel:
 
     def system_for(self, descriptor: str) -> str:
         persona = self.personas.get(descriptor, "You are a helpful assistant.")
-        return f"{persona}\n\n{SHAPE.format(separator=PARAGRAPH_SEPARATOR)}"
+        shape = SHAPES.get(descriptor, SHAPE)
+        return f"{persona}\n\n{shape.format(separator=PARAGRAPH_SEPARATOR)}"
 
     def _messages(self, ask: Ask) -> list[dict[str, Any]]:
         """The conversation as turns, then the thing to answer.
@@ -191,7 +228,7 @@ class ClaudeModel:
         said = False
         with self._client.messages.stream(
             model=self._model,
-            max_tokens=2048,
+            max_tokens=ANSWER_TOKENS.get(ask.descriptor, DEFAULT_ANSWER_TOKENS),
             system=[
                 {
                     "type": "text",
@@ -217,11 +254,14 @@ class ClaudeModel:
             if held.strip():
                 said = True
                 yield held.strip()
-            if stream.get_final_message().stop_reason == "refusal":
+            stopped = stream.get_final_message().stop_reason
+            if stopped == "refusal":
                 raise Refused(
                     "the model declined to answer"
                     if not said
                     else "the model stopped part way through and declined to go on"
                 )
+            if stopped == "max_tokens" and said:
+                yield TRUNCATED
         if not said:
             yield "I have nothing to add."

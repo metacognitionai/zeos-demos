@@ -31,7 +31,10 @@ body {
   margin: 0;
   height: 100dvh;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  /* header, background-job strip, conversation, composer. The strip's row is `auto`
+     so it collapses to nothing while hidden -- four rows, not three, because an
+     element added without a row of its own takes the `1fr` one and lands mid-page. */
+  grid-template-rows: auto auto 1fr auto;
   background: var(--bg);
   color: var(--ink);
   font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -116,6 +119,44 @@ h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
   .logo.busy { opacity: 0.55; }
 }
 
+/* The background-job strip. Present only while a job has recorded a pending task, so an
+   empty conversation is an empty page: a permanent bar saying "nothing is running" is
+   furniture rather than information. */
+.task {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 20px;
+  font-size: 12px;
+  color: var(--accent);
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+
+/* One line per running job. The dot belongs to the job rather than to the strip: with
+   two jobs a single dot at the top would suggest one of them. */
+.task .job {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.task .job::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.25; }
+  50%      { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .task .job::before { animation: none; opacity: 0.8; }
+}
+
 /* -- layout -------------------------------------------------------------- */
 
 main { display: flex; min-height: 0; }
@@ -182,6 +223,58 @@ li.grouped { margin-top: -8px; }
 
 .empty { max-width: 46rem; margin: 6px auto; color: var(--soft); font-size: 13px; }
 .empty code { font-family: var(--mono); font-size: 12px; }
+
+/* A report: a document in the transcript, not speech. Bordered rather than filled, and
+   left where a reply would sit, so it reads as something the conversation produced rather
+   than something it said. */
+.bubble.document { padding: 0; overflow: hidden; }
+
+.document-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.document-head:hover { background: var(--bg); }
+
+.doc { width: 20px; height: 24px; flex: none; fill: none; stroke: var(--accent); stroke-width: 1.6; }
+.doc .fold, .doc .rule { stroke: var(--accent); }
+.doc .rule { opacity: 0.55; }
+
+.document-name { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.document-size { flex: none; font-size: 12px; color: var(--soft); }
+
+/* The chevron is the affordance: a document you can open, rather than a decorated line. */
+.document-head::after {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--soft);
+  border-bottom: 1.5px solid var(--soft);
+  transform: rotate(45deg) translate(-2px, -2px);
+}
+.document-head[aria-expanded="true"]::after { transform: rotate(-135deg) translate(-2px, -2px); }
+
+.document-body {
+  margin: 0;
+  padding: 0 14px 12px;
+  border-top: 1px solid var(--line);
+  max-height: 24rem;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--ink);
+}
 
 /* -- the kernel panel ---------------------------------------------------- */
 

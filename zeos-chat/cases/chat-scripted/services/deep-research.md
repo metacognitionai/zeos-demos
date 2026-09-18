@@ -6,8 +6,22 @@ name: deep-research
 # immediately rather than at a checkpoint the author remembered to insert.
 priority: 90
 on_fault: retry
+reads:
+  - session.topic
 writes:
   - session.pending_task
+maps:
+  # How this job learns what it was started for, without being handed anything.
+  #
+  # A spawn carries a descriptor name and nothing else, so there is no argument to pass a
+  # question in. There does not need to be: the conversation has already written what it
+  # is working on into `session.topic`, and a status region is a line the kernel keeps
+  # current in this job's window and the eviction planner refuses to touch. So the child
+  # reads the subject out of the world rather than out of a parameter, and it stays
+  # readable however long this job runs and however much paging pressure it is under.
+  - object: session.topic
+    mode: ro
+    region: status
 pipes:
   stdout: user.replies      # the findings, straight to the person
   tools: actuators.task     # its own actuator, because an actuator write latches into one object

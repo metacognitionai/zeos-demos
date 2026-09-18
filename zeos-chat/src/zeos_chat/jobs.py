@@ -21,13 +21,23 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass, field
 
+from zeos.core.framing import FRAMES
 from zeos.core.ids import JobId
 from zeos.machine.seat import Turn
 
 from zeos_chat.abi import CHAT
 from zeos_chat.llm import ABANDONED, END
 
-__all__ = ["JobContext", "PROGRAMS", "ProgramSource", "payload"]
+__all__ = [
+    "JobContext",
+    "PROGRAMS",
+    "ProgramSource",
+    "from_the_kernel",
+    "payload",
+    "research_subject",
+    "status_of",
+    "wants_research",
+]
 
 
 def payload(text: str) -> str:
@@ -70,8 +80,32 @@ class JobContext:
 
     @property
     def arrival(self) -> str:
-        """The most recent thing to arrive -- what the read that just returned produced."""
-        return self.arrivals[-1] if self.arrivals else ""
+        """What the read that just returned produced.
+
+        The *last* arrival is not that, and assuming it was is a bug this found the hard
+        way. The kernel injects its own frames into a window too -- a resume notice after
+        a preemption, a status region it refreshed -- and those land in the same list. A
+        second job in the system is enough to have `converse` preempted around its read
+        and resumed afterwards, at which point the last arrival is `<RESUME> Waited 29ms
+        ...` and the conversation cheerfully took that for the person's message.
+
+        So the kernel's frames are skipped and the last thing an actual pipe delivered is
+        returned. `arrivals` still holds everything, in order.
+        """
+        return next((a for a in reversed(self.arrivals) if not from_the_kernel(a)), "")
+
+
+def from_the_kernel(text: str) -> bool:
+    """Whether an arrival is the kernel talking, rather than something a pipe delivered.
+
+    Matched against ``zeos.core.framing.FRAMES``, so a frame added there is skipped here
+    without this module being edited. Written as a prefix test rather than a pattern
+    because the obvious regex needs a word-boundary escape, and this one was silently
+    mangled into a literal backspace on the way into the file -- a pattern that compiled,
+    printed correctly, and matched nothing.
+    """
+    head = text.lstrip()
+    return any(head.startswith(f"<{name}>") or head.startswith(f"<{name} ") for name in FRAMES)
 
 
 def stream_piece(arrival: str) -> tuple[str, bool]:
@@ -86,6 +120,67 @@ def stream_piece(arrival: str) -> tuple[str, bool]:
     ended = END in arrival or ABANDONED in arrival
     text = arrival.replace(END, " ").replace(ABANDONED, " ").strip()
     return text, ended
+
+
+#: What a person says when they want something looked into properly rather than answered
+#: in a turn. A phrase table rather than a model call, because asking the model whether to
+#: ask the model is a round trip spent on a decision a person has already made explicit.
+#: Crude on purpose: it is the recogniser, not the researcher.
+RESEARCH_PHRASES = (
+    "research ",
+    "look into ",
+    "looking into ",
+    "dig into ",
+    "deep dive",
+    "investigate ",
+    "find out everything",
+    "do some research",
+)
+
+
+def research_subject(message: str) -> str:
+    """What this message wants looked into, or "" if it wants an ordinary answer.
+
+    The trigger phrase is taken off the front of the subject. "research the history of
+    Kyoto" is a request about the history of Kyoto, and a job whose status line reads
+    "looking into research the history of Kyoto" is quoting the instruction back rather
+    than naming the work.
+    """
+    said = " ".join(message.split())
+    lowered = said.lower()
+    found = [(lowered.find(p), p) for p in RESEARCH_PHRASES if p in lowered]
+    if not found:
+        return ""
+    at, phrase = min(found)
+    # Rejoined on whitespace: cutting a phrase out of the middle leaves the space
+    # before it and the space after it, and a doubled space goes into the status line.
+    subject = " ".join(f"{said[:at]} {said[at + len(phrase) :]}".split()).strip(" ,.:;-")
+    # A bare "do some research" names nothing; the conversation's topic is the best
+    # available subject, and that is what the child will read anyway.
+    return subject or said
+
+
+def wants_research(message: str) -> bool:
+    """Whether this message is asking for the long job rather than for an answer."""
+    return bool(research_subject(message))
+
+
+def status_of(window: str, obj: str) -> str:
+    """The current value of a status region, read out of the job's own window.
+
+    This is how a spawned job learns what it was started for. A spawn carries a descriptor
+    name and nothing else, so there is no argument to read -- but the kernel keeps this
+    line current in the window, which means the child can read the subject out of the
+    world instead. The last occurrence wins: a status region is rewritten in place, and if
+    an older copy is still visible the current one is the later of the two.
+    """
+    opening = f"<STATUS {obj}>"
+    start = window.rfind(opening)
+    if start == -1:
+        return ""
+    rest = window[start + len(opening) :]
+    end = rest.find("</STATUS>")
+    return " ".join((rest if end == -1 else rest[:end]).split())
 
 
 def topic_of(message: str, words: int = 8) -> str:
@@ -112,8 +207,32 @@ def converse(ctx: JobContext) -> Iterator[str]:
         message = ctx.arrival
 
         # Record the subject *before* answering. The recording is what survives an
-        # interrupt; a half-written answer is not.
-        yield f"write tools {topic_of(message)};"
+        # interrupt; a half-written answer is not -- and when the long job is started
+        # below, this line is the only way it learns what it is for.
+        # The subject, with any "research ..." framing taken off: this line is both what
+        # the person sees as the topic and what a spawned child reads as its brief.
+        subject = research_subject(message)
+        # A longer budget for a brief than for a status line. Eight words is plenty to
+        # remind a conversation what it is doing; it cut "the Edo period" to "the Edo"
+        # and handed that to the job as the thing to go and research.
+        topic = topic_of(subject, words=24) if subject else topic_of(message)
+        yield f"write tools {topic};"
+
+        if subject:
+            # Hand it off and go straight back to listening. The acknowledgement is
+            # composed here rather than asked of the model, which is the whole point of
+            # the arrangement: the person gets an answer immediately and the slow work
+            # happens underneath at priority 90, where anything they do outranks it.
+            #
+            # `children:` is what makes this legal. A spawn naming anything else is a
+            # capability fault at the kernel, not a check in this function.
+            yield "spawn deep-research;"
+            yield (
+                f"write stdout Looking into {topic} now. "
+                f"That runs underneath this conversation, so carry on -- "
+                f"I will add what it finds as it arrives.;"
+            )
+            continue
 
         yield f"write ask {payload(message)};"
 
@@ -156,17 +275,39 @@ def deep_research(ctx: JobContext) -> Iterator[str]:
     That is the point rather than a shortcoming: at priority 90 it can spend as long as it
     likes while the conversation stays responsive above it. A demonstration where
     everything is slow cannot show the contrast the design is about.
+
+    Nothing is handed to this job when it starts. It reads what it is for out of
+    `session.topic`, which the conversation wrote before spawning it and which the kernel
+    keeps current in this job's window -- so the subject survives however long the job
+    runs and whatever the pager does to the rest of its context.
     """
-    yield f"write tools {payload('looking into ' + ctx.descriptor)};"
-    yield "write ask research the question the conversation is working on;"
+    subject = status_of(ctx.window, "session.topic") or "the current conversation"
+
+    # The pending task, in the world where the conversation can see it. It maps
+    # `session.pending_task` read-only, so this is how it learns about work it dispatched
+    # without holding any handle to the job doing it.
+    yield f"write tools {payload('looking into ' + subject)};"
+
+    yield f"write ask research this thoroughly and report what you find: {payload(subject)};"
+
+    # The heading waits for the first words rather than announcing them. Written up front
+    # it said "Here is what I found on X." and was then followed by several minutes of
+    # nothing while the model thought -- a promise the job had not yet kept.
+    announced = False
     while True:
         yield "read hear;"
         text, ended = stream_piece(ctx.arrival)
         if text:
+            if not announced:
+                announced = True
+                yield f"write stdout Here is what I found on {payload(subject)}.;"
             yield f"write stdout {payload(text)};"
         if ended or ctx.abandoned:
             ctx.abandoned = False
             break
+
+    # Clear the pending task before finishing. A job that ends leaving "looking into X" in
+    # the world tells the conversation it is still working, for ever.
     yield "write tools none;"
     yield "exit;"
 

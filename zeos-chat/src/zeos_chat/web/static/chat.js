@@ -13,11 +13,14 @@ const empty = document.getElementById("empty");
 const panel = document.getElementById("panel");
 const toggle = document.getElementById("panel-toggle");
 const emailButton = document.getElementById("email");
+const task = document.getElementById("task");
 
 let lastWasMine = null;
 // The reply being written, if one is. An answer arrives as a stream of small writes, so
 // they belong in one bubble that fills rather than a bubble each.
-let open = null;
+//: The bubble each speaking job is currently filling, by job. Two jobs write into this
+//: transcript at once, so there is not one "current" bubble.
+const open = new Map();
 
 function bubble(text, mine) {
   empty.hidden = true;
@@ -39,26 +42,36 @@ function bubble(text, mine) {
 // does not survive the trip through a pipe -- the seat splits a command on whitespace.
 const PARAGRAPH = "|";
 
-function say(chunk) {
-  if (open === null) open = bubble("", false);
+//: One open bubble per speaking job, because two jobs write into this transcript at the
+//: same time. Keyed rather than single: with one `open` bubble the long job's findings and
+//: the conversation's answer landed in whichever was current, and an answer that arrived
+//: during research was buried inside it. Closing on every change of speaker was no better
+//: -- it chopped a four-word answer into four bubbles interleaved with the research.
+function say(chunk, job) {
+  const who = job || "";
+  if (!open.has(who)) open.set(who, bubble("", false));
+  const into_bubble = open.get(who);
   const atEnd = Math.abs(
     messages.parentElement.scrollHeight - messages.parentElement.scrollTop
       - messages.parentElement.clientHeight) < 80;
 
   for (const [i, part] of chunk.split(PARAGRAPH).entries()) {
-    if (i > 0) open.appendChild(document.createElement("p"));
-    const into = open.lastElementChild;
+    if (i > 0) into_bubble.appendChild(document.createElement("p"));
+    const into = into_bubble.lastElementChild;
     const words = part.trim();
     if (!words) continue;
     into.textContent = into.textContent ? `${into.textContent} ${words}` : words;
   }
   // Follow the reply only if already at the bottom, so reading back is not yanked away
   // by every word.
-  if (atEnd) open.scrollIntoView({ block: "end" });
+  if (atEnd) into_bubble.scrollIntoView({ block: "end" });
 }
 
+//: Every open bubble is closed, so what comes next starts fresh. A job still streaming
+//: simply opens a new one, which reads as the work continuing rather than as one bubble
+//: growing across somebody else's turn.
 function endTurn() {
-  open = null;
+  open.clear();
 }
 
 //: What a mark says. The transcript shows the *consequence* -- the panel next to it shows
@@ -135,6 +148,78 @@ function transcript() {
     .join("\n\n");
 }
 
+//: What the background jobs are doing, one line each. The strip is absent when the list
+//: is empty rather than saying "nothing is running", which is furniture.
+function showTasks(list) {
+  const running = (list || []).filter((t) => t && t !== "none");
+  task.hidden = running.length === 0;
+  task.textContent = "";
+  for (const what of running) {
+    const line = document.createElement("span");
+    line.className = "job";
+    line.textContent = what;
+    task.appendChild(line);
+  }
+}
+
+//: A finished report, as a document in the transcript rather than as speech.
+//:
+//: The long job's findings are pages long and answer something asked many turns ago.
+//: Streamed into the conversation they bury whatever it is doing and read as though the
+//: chatbot had started rambling. As a file they are what they are: a thing that was
+//: produced, which you open when you want it.
+function offerReport(id, subject, words) {
+  empty.hidden = true;
+  // Deliberately *not* closing the open bubbles. A document appearing is not the
+  // conversation taking a turn, and closing them split an answer that was still arriving
+  // into two halves either side of the document.
+  const li = document.createElement("li");
+  li.className = "theirs report";
+
+  const card = document.createElement("div");
+  card.className = "bubble document";
+
+  const head = document.createElement("button");
+  head.className = "document-head";
+  head.type = "button";
+  head.setAttribute("aria-expanded", "false");
+  head.innerHTML =
+    '<svg class="doc" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M6 2h8l4 4v16H6z"/><path class="fold" d="M14 2v5h5"/>' +
+    '<path class="rule" d="M9 12h7M9 15h7M9 18h4"/></svg>';
+  const label = document.createElement("span");
+  label.className = "document-name";
+  label.textContent = subject || "research";
+  const size = document.createElement("span");
+  size.className = "document-size";
+  size.textContent = `${words} words`;
+  head.append(label, size);
+
+  const body = document.createElement("pre");
+  body.className = "document-body";
+  body.hidden = true;
+
+  head.addEventListener("click", async () => {
+    const open = body.hidden;
+    head.setAttribute("aria-expanded", String(open));
+    if (open && !body.textContent) {
+      body.textContent = "opening…";
+      try {
+        body.textContent = await (await fetch(`/report/${id}`)).text();
+      } catch (e) {
+        body.textContent = `could not be opened: ${e}`;
+      }
+    }
+    body.hidden = !open;
+  });
+
+  card.append(head, body);
+  li.appendChild(card);
+  messages.appendChild(li);
+  lastWasMine = null;
+  li.scrollIntoView({ block: "end", behavior: "smooth" });
+}
+
 function journal(kind, text) {
   // A streamed reply is one write per chunk, so the same line arrives many times over.
   // Folding them keeps the panel readable without hiding that they happened.
@@ -160,10 +245,12 @@ stream.onmessage = (e) => {
   const msg = JSON.parse(e.data);
   if (msg.kind === "mark") mark(msg.mark);
   else if (msg.kind === "said") { endTurn(); bubble(msg.text, true); }
-  else if (msg.kind === "reply") say(msg.text);
+  else if (msg.kind === "reply") say(msg.text, msg.job);
   else if (msg.kind === "kernel") journal(msg.class, msg.text);
   else if (msg.kind === "mailer") { mailer = msg; describeMailer(); }
   else if (msg.kind === "mail") posted(msg.to, msg.subject, msg.outcome);
+  else if (msg.kind === "task") showTasks(msg.tasks);
+  else if (msg.kind === "report") offerReport(msg.id, msg.subject, msg.words);
   else if (msg.kind === "busy") {
     // The logo animates exactly while the system has work outstanding.
     logo.classList.toggle("busy", msg.busy);

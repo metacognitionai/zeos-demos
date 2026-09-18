@@ -16,6 +16,7 @@ import pytest
 from zeos_chat.claude import (
     EVICTED,
     PARAGRAPH_SEPARATOR,
+    TRUNCATED,
     ClaudeModel,
     Refused,
     turns_of,
@@ -31,6 +32,7 @@ class Canned:
         self._deltas, self._stop = deltas, stop
         self.systems: list[str] = []
         self.prompts: list[Any] = []
+        self.calls: list[dict[str, Any]] = []
 
     class _Stream:
         def __init__(self, deltas: list[str], stop: str) -> None:
@@ -52,6 +54,7 @@ class Canned:
         return self
 
     def stream(self, **kwargs: Any) -> Any:
+        self.calls.append(kwargs)
         self.systems.append(kwargs["system"][0]["text"])
         self.prompts.append(kwargs["messages"])
         self.last = Canned._Stream(list(self._deltas), self._stop)
@@ -224,3 +227,46 @@ def test_leaving_the_stream_early_closes_it() -> None:
     stream.close()
 
     assert client.last.closed, "the stream was left open"
+
+
+def test_the_long_job_is_given_room_to_think() -> None:
+    """The budget covers the model's reasoning as well as its words. At 2048 the long job
+    spent the whole allowance thinking and emitted nothing -- `stop_reason: max_tokens`,
+    one thinking block, zero characters -- which the empty-answer fallback then reported
+    as "I have nothing to add.\""""
+    m, client = model(["hi "])
+    words(m, Ask(descriptor="deep-research", prompt="q", reply_to="x"))  # type: ignore[arg-type]
+    words(m, Ask(descriptor="converse", prompt="q", reply_to="x"))  # type: ignore[arg-type]
+
+    budgets = [call["max_tokens"] for call in client.calls]
+    assert budgets[0] > budgets[1], f"the long job got no more room than a turn: {budgets}"
+    assert budgets[1] >= 4096, "a reply that ends mid-sentence is what too small a cap looks like"
+
+
+def test_an_answer_cut_off_by_the_budget_says_so() -> None:
+    """An answer that stops mid-sentence with no explanation reads as a bug in the
+    conversation rather than as a limit being reached."""
+    m, _ = model(["a long answer "], stop="max_tokens")
+    said = words(m, Ask(descriptor="converse", prompt="q", reply_to="x"))  # type: ignore[arg-type]
+    assert TRUNCATED in said
+
+
+def test_an_answer_that_simply_finished_says_nothing_extra() -> None:
+    m, _ = model(["all done "])
+    assert TRUNCATED not in words(m, Ask(descriptor="converse", prompt="q", reply_to="x"))  # type: ignore[arg-type]
+
+
+def test_the_long_job_is_not_told_to_be_brief() -> None:
+    """Its persona says to take the time it needs and that a short answer wastes the
+    arrangement. The default shape says three short paragraphs and nobody is paying by the
+    word — two instructions with no way to satisfy both."""
+    m, client = model(["hi "])
+    m.personas["deep-research"] = "You are a background job."
+    words(m, Ask(descriptor="deep-research", prompt="q", reply_to="x"))  # type: ignore[arg-type]
+    words(m, Ask(descriptor="converse", prompt="q", reply_to="x"))  # type: ignore[arg-type]
+
+    long_job, turn = client.systems
+    assert "nobody is paying by the word" not in long_job
+    assert "as fully as the question deserves" in long_job
+    assert "one to three short paragraphs" in turn, "the conversation still answers briefly"
+    assert PARAGRAPH_SEPARATOR in long_job, "both shapes must explain the separator"

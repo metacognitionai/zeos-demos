@@ -431,3 +431,42 @@ def test_a_job_asks_with_the_new_message_only(make_session, run) -> None:
     assert asks[0].prompt == "a short question", (
         f"the job wrote more than the message: {asks[0].prompt!r}"
     )
+
+
+def test_a_read_returns_what_a_pipe_delivered_and_not_a_kernel_frame() -> None:
+    """A program's `arrival` must mean "what my read produced", not "the last thing put
+    into my window" -- the kernel puts its own frames there too.
+
+    Found the hard way. A resume notice lands after a preemption, so once a second job
+    existed in the system the conversation was preempted around its read, resumed, and
+    took `<RESUME> Waited 29ms. Changed state you depend on:` for the person's message:
+    it set that as the topic and asked the model about it.
+    """
+    from zeos.core.ids import JobId
+
+    from zeos_chat.jobs import JobContext, from_the_kernel
+
+    ctx = JobContext(descriptor="converse", job=JobId(1))
+    ctx.arrivals.append("research the history of Kyoto")
+    ctx.arrivals.append("<RESUME> Waited 29ms. Changed state you depend on: Revalidate.")
+    assert ctx.arrival == "research the history of Kyoto"
+
+    ctx.arrivals.append("<STATUS session.topic> the history of Kyoto </STATUS>")
+    assert ctx.arrival == "research the history of Kyoto", "a status refresh was taken as input"
+
+    ctx.arrivals.append("and what about Nara")
+    assert ctx.arrival == "and what about Nara"
+
+    assert from_the_kernel("<FAULT> something") and not from_the_kernel("a fault, I think")
+
+
+def test_a_job_with_only_kernel_frames_has_read_nothing() -> None:
+    """The degenerate case, which must not fall back to the frame: a program that acts on
+    the kernel's own words as though a person had said them is the bug above."""
+    from zeos.core.ids import JobId
+
+    from zeos_chat.jobs import JobContext
+
+    ctx = JobContext(descriptor="converse", job=JobId(1))
+    ctx.arrivals.append("<RESUME> Suspended 1ms.")
+    assert ctx.arrival == ""

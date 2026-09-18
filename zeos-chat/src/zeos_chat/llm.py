@@ -148,8 +148,20 @@ class LlmAdapter:
 
     @property
     def in_flight(self) -> int:
+        """Every request nobody has answered yet, whichever job asked."""
         with self._lock:
             return len(self._outstanding)
+
+    def in_flight_for(self, descriptor: str) -> int:
+        """Requests this descriptor is waiting on.
+
+        The distinction matters to a driver: "is anything happening" and "is the
+        conversation mid-answer" are different questions, and answering the second with
+        the first marks a message sent during background work as though it had
+        interrupted a reply.
+        """
+        with self._lock:
+            return sum(1 for ask in self._outstanding.values() if ask.descriptor == descriptor)
 
     def handles(self, pipe: PipeName) -> bool:
         return pipe in self._routes

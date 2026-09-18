@@ -27,19 +27,32 @@
       is the resident conversation <strong>blocking on read</strong>, costing nothing until
       you type. Speak while it is answering and an <strong>interrupt</strong> preempts the
       conversation at a <strong>token boundary</strong>, between one word and the next;
-      <strong>stop</strong> fires at high <strong>priority</strong> to take the machine off
+      pressing Stop fires at high <strong>priority</strong> to take the machine off
       whatever it's doing. The model is a <strong>device on a pipe</strong>, so the kernel
       keeps running while it thinks. The conversation itself lives in a
       <strong>context window</strong>, and the <strong>pager</strong> evicts the coldest
-      part to a <strong>stub</strong> if it gets too long. Press Email and a
+      part to a <strong>stub</strong> if it gets too long. Ask it to
+      <strong>research</strong> something, by typing &ldquo;research&rdquo; or &ldquo;look
+      into&rdquo;, and it <strong>spawns</strong> a second job to do that at low
+      <strong>priority</strong>, answers you at once, and keeps talking while the job
+      grinds away underneath; the bar below lists whatever jobs are running, and what one
+      finds comes back as a <strong>document</strong> you open rather than as talk. Press Email and a
       <strong>vector</strong> dispatches a separate job whose single
-      <strong>actuator</strong> write is the only effect that leaves the machine — and so
+      <strong>actuator</strong> write is the only effect that leaves the machine, and so
       the only one the kernel can <strong>refuse</strong>, on authority or on
       <strong>integrity</strong> if that job has read something untrusted. On the right is
       the kernel's <strong>journal</strong>: what it did, not what was said.</p>
   </div>
   <button id="panel-toggle" class="ghost" aria-expanded="false">Kernel</button>
 </header>
+
+<!--
+  What a background job is doing, read from `session.pending_task` -- the world object
+  `deep-research` latches through its own actuator. The conversation maps the same line
+  read-only, so this is the page learning about dispatched work exactly as the
+  conversation does, rather than the server keeping a second account of it.
+-->
+<div id="task" class="task" hidden aria-live="polite"></div>
 
 <main>
   <section class="conversation" aria-live="polite">

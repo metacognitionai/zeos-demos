@@ -14,12 +14,13 @@ import queue
 import re
 import threading
 import time
+import urllib.error
 import urllib.request
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from zeos.core.events import PipeWritten
+from zeos.core.events import JobCompleted, PipeWritten
 from zeos.core.ids import PipeName
 from zeos.descriptor.loader import load_case
 
@@ -55,6 +56,13 @@ def post(base: str, path: str, body: dict[str, object] | None = None) -> int:
     )
     with urllib.request.urlopen(request, timeout=5) as response:
         return int(response.status)
+
+
+#: How long a gated fake model waits before giving up and answering anyway. Long enough
+#: that it never expires inside a test: an `Event.wait` that times out *releases* the job
+#: it was holding, so a short gate turns a deterministic test into a race against itself.
+#: Every test that uses one sets it in a `finally`, so nothing actually waits this long.
+HELD = 120.0
 
 
 def until(predicate, timeout: float = 5.0) -> bool:
@@ -109,7 +117,12 @@ def test_the_logo_animates_only_while_a_job_holds_the_machine() -> None:
         head = bare[: declaration.start()]
         opened = head.rindex("{")
         previous = max(head.rfind("}", 0, opened), head.rfind("{", 0, opened))
-        animated.append(head[previous + 1 : opened].strip())
+        selector = head[previous + 1 : opened].strip()
+        # Only the logo's own parts. Other things on the page may animate for their own
+        # reasons -- the background-job strip pulses while a job is running -- and this
+        # rule is about the mark resting when the kernel does, not about motion in general.
+        if any(part in selector for part in (".logo", ".paddle", ".ball")):
+            animated.append(selector)
     assert animated, "the logo has no animation at all"
     assert all(".logo.busy" in selector for selector in animated), (
         f"an animation is attached outside .busy, so the logo moves at rest: {animated}"
@@ -553,3 +566,333 @@ def test_the_email_button_styling_cannot_reach_the_transcript() -> None:
             f"`{selector}` uses the shared class and would style the transcript too"
         )
         assert "background" not in body, f"`{selector}` puts a background on transcript text"
+
+
+# -- background work is visible on the page ---------------------------------
+
+
+def tasks(seen: list[dict[str, object]]) -> list[list[str]]:
+    """Each task frame as the list of jobs it reported."""
+    return [[str(t) for t in m["tasks"]] for m in seen if m["kind"] == "task"]  # type: ignore[union-attr]
+
+
+def test_the_page_is_told_what_a_background_job_is_doing() -> None:
+    """Read from `session.pending_task`, the world object the long job latches through its
+    own actuator -- the same line the conversation maps read-only. The page learns about
+    dispatched work the way the conversation does, rather than the server keeping a
+    second account of it."""
+    import threading
+
+    release = threading.Event()
+
+    def model(ask: Ask) -> str:
+        if ask.descriptor == "deep-research":
+            release.wait(timeout=HELD)
+            return "what it found"
+        return "an answer"
+
+    session, adapter, source = build_session(load_case(CASE), model=model)
+    server = serve(session, adapter, source, port=0)
+    base = f"http://127.0.0.1:{server.httpd.server_address[1]}"
+    seen = watch(server)
+    try:
+        post(base, "/say", {"text": "research the history of Kyoto"})
+
+        assert until(lambda: any(frame for frame in tasks(seen)), timeout=8), (
+            f"the page was never told: {tasks(seen)}"
+        )
+        running = next(frame for frame in tasks(seen) if frame)
+        assert len(running) == 1
+        assert "the history of Kyoto" in running[0]
+
+        release.set()
+        assert until(lambda: tasks(seen)[-1] == [], timeout=8), (
+            f"the strip was left saying a finished job is still running: {tasks(seen)}"
+        )
+    finally:
+        release.set()
+        server.stop()
+        server.httpd.shutdown()
+
+
+def test_a_new_tab_is_told_the_current_task() -> None:
+    """A tab opened while a background job is running should say so at once rather than
+    wait for a change it has no way to anticipate."""
+    server = ChatServer(*build_session(load_case(CASE))[:3])
+    assert tasks(drain(server.watch())) == [[]], "an idle system must report no jobs"
+
+
+# -- background work is not an interruption ---------------------------------
+
+
+def _research_running(model):  # type: ignore[no-untyped-def]
+    """A server whose long job is parked on a model that will not answer yet."""
+    session, adapter, source = build_session(load_case(CASE), model=model)
+    server = serve(session, adapter, source, port=0)
+    base = f"http://127.0.0.1:{server.httpd.server_address[1]}"
+    seen = watch(server)
+    post(base, "/say", {"text": "research the history of Kyoto"})
+    assert until(lambda: adapter.in_flight_for("deep-research") > 0, timeout=8), (
+        "the research never reached the model"
+    )
+    return server, base, seen
+
+
+def test_talking_during_research_is_not_marked_as_an_interruption() -> None:
+    """The conversation was not answering, so nothing was interrupted. Judged by "is
+    anything in flight" it was, because the long job is -- and the page drew "you spoke
+    while the answer was still arriving" over a conversation that had been idle."""
+    release = threading.Event()
+
+    def model(ask) -> str:  # type: ignore[no-untyped-def]
+        if ask.descriptor == "deep-research":
+            release.wait(timeout=HELD)
+            return "what it found"
+        return "an ordinary answer"
+
+    server, base, seen = _research_running(model)
+    try:
+        post(base, "/say", {"text": "meanwhile, name one temple"})
+        assert until(lambda: any(m["kind"] == "reply" for m in seen), timeout=8)
+        time.sleep(0.2)
+        assert marks(seen) == [], f"a message during background work was marked: {marks(seen)}"
+    finally:
+        release.set()
+        server.stop()
+        server.httpd.shutdown()
+
+
+def test_talking_during_research_does_not_cut_the_next_answer_short() -> None:
+    """The worse half of the same mistake. Treating it as a barge-in ran the abandon path
+    against an idle conversation, setting the give-up flag it reads between writes -- so
+    the answer to the new question stopped part way through.
+
+    The words are spaced out on purpose. A blocking read takes everything waiting on the
+    pipe, so chunks produced back to back arrive in one read and are all written before
+    the flag is next looked at -- which hides the bug rather than fixing it.
+    """
+    release = threading.Event()
+
+    def model(ask) -> Iterator[str]:  # type: ignore[no-untyped-def]
+        if ask.descriptor == "deep-research":
+            release.wait(timeout=HELD)
+            yield "what it found"
+            return
+        for word in ("first ", "second ", "third"):
+            time.sleep(0.15)
+            yield word
+
+    server, base, seen = _research_running(model)
+    try:
+        post(base, "/say", {"text": "meanwhile, name one temple"})
+        assert until(
+            lambda: "third" in " ".join(str(m.get("text", "")) for m in seen), timeout=8
+        ), f"the answer was cut short: {[m.get('text') for m in seen if m['kind'] == 'reply']}"
+    finally:
+        release.set()
+        server.stop()
+        server.httpd.shutdown()
+
+
+def test_barging_in_on_the_conversation_is_still_marked() -> None:
+    """The control, so the fix above does not simply switch the mark off."""
+    release = threading.Event()
+
+    def model(ask) -> str:  # type: ignore[no-untyped-def]
+        release.wait(timeout=HELD)
+        return "a slow answer"
+
+    session, adapter, source = build_session(load_case(CASE), model=model)
+    server = serve(session, adapter, source, port=0)
+    base = f"http://127.0.0.1:{server.httpd.server_address[1]}"
+    seen = watch(server)
+    try:
+        post(base, "/say", {"text": "name three temples"})
+        assert until(lambda: adapter.in_flight_for("converse") > 0, timeout=8)
+        post(base, "/say", {"text": "actually make it Osaka"})
+        assert until(lambda: marks(seen) == ["barge-in"], timeout=8), f"marks: {marks(seen)}"
+    finally:
+        release.set()
+        server.stop()
+        server.httpd.shutdown()
+
+
+def test_every_running_job_is_shown_not_just_the_latest() -> None:
+    """`session.pending_task` cannot answer this on its own: an actuator holds a *value*,
+    so a second job overwrites the first in it. The page is keyed by job instead.
+
+    Driven through the bookkeeping rather than through two live research jobs, because
+    two of those do not currently work -- they share one reply pipe and take each other's
+    answers, so a test built on them is a race. What is under test here is the indicator.
+    """
+    from zeos.core.ids import JobId
+
+    server = ChatServer(*build_session(load_case(CASE))[:3])
+    stream = server.watch()
+    drain(stream)
+
+    server._note_task(JobId(3), "looking into the history of Kyoto")  # pyright: ignore[reportPrivateUsage]
+    server._note_task(JobId(5), "looking into Osaka street food")  # pyright: ignore[reportPrivateUsage]
+
+    shown = tasks(drain(stream))[-1]
+    assert len(shown) == 2, f"only one job was shown: {shown}"
+    assert "the history of Kyoto" in shown[0] and "Osaka street food" in shown[1]
+
+
+def test_one_job_finishing_does_not_clear_the_others() -> None:
+    """The failure the shared world object produces: the first job to finish writes
+    `none` into the one line and the strip goes dark while the other is still working."""
+    from zeos.core.ids import JobId
+
+    server = ChatServer(*build_session(load_case(CASE))[:3])
+    stream = server.watch()
+    drain(stream)
+    server._note_task(JobId(3), "looking into the history of Kyoto")  # pyright: ignore[reportPrivateUsage]
+    server._note_task(JobId(5), "looking into Osaka street food")  # pyright: ignore[reportPrivateUsage]
+    drain(stream)
+
+    server._note_task(JobId(3), "none")  # pyright: ignore[reportPrivateUsage]
+    shown = tasks(drain(stream))[-1]
+    assert shown == ["looking into Osaka street food"], f"wrong job left showing: {shown}"
+
+    server._note_task(JobId(5), "none")  # pyright: ignore[reportPrivateUsage]
+    assert tasks(drain(stream))[-1] == [], "the strip outlived the last job"
+
+
+def test_a_job_that_ends_without_clearing_its_line_is_still_removed() -> None:
+    """`deep-research` clears `session.pending_task` on the way out, but a job that faults
+    or is cancelled does not -- and that is exactly when a strip saying it is still
+    working would be worst."""
+    from zeos.core.ids import JobId
+
+    server = ChatServer(*build_session(load_case(CASE))[:3])
+    stream = server.watch()
+    drain(stream)
+
+    server._note_task(JobId(7), "looking into something")  # pyright: ignore[reportPrivateUsage]
+    assert tasks(drain(stream))[-1] == ["looking into something"]
+
+    server._on_event([JobCompleted(clock=0, job=JobId(7), tokens_used=1)])  # pyright: ignore[reportPrivateUsage]
+    assert tasks(drain(stream))[-1] == []
+
+
+# -- two jobs speaking into one transcript ----------------------------------
+
+
+def reports(seen: list[dict[str, object]]) -> list[dict[str, object]]:
+    return [m for m in seen if m["kind"] == "report"]
+
+
+def test_the_long_jobs_findings_do_not_enter_the_conversation() -> None:
+    """They arrive as a document instead. Run into the transcript they bury whatever the
+    conversation is doing and read as though the chatbot had started rambling -- and they
+    are an answer to something asked many turns ago, not a turn."""
+
+    def model(ask) -> Iterator[str]:  # type: ignore[no-untyped-def]
+        if ask.descriptor == "deep-research":
+            yield "FINDINGS about temples"
+            return
+        yield "ANSWER"
+
+    session, adapter, source = build_session(load_case(CASE), model=model)
+    server = serve(session, adapter, source, port=0)
+    base = f"http://127.0.0.1:{server.httpd.server_address[1]}"
+    seen = watch(server)
+    try:
+        post(base, "/say", {"text": "research the history of Kyoto"})
+        assert until(lambda: reports(seen), timeout=8), "no report was offered"
+
+        spoken = " ".join(str(m["text"]) for m in seen if m["kind"] == "reply")
+        assert "FINDINGS" not in spoken, f"the findings leaked into the transcript: {spoken}"
+        assert "Looking into" in spoken, "the acknowledgement should still be a reply"
+
+        offered = reports(seen)[0]
+        assert "the history of Kyoto" in str(offered["subject"])
+        assert int(offered["words"]) > 0
+    finally:
+        server.stop()
+        server.httpd.shutdown()
+
+
+def test_a_report_can_be_opened_as_a_text_file() -> None:
+    """The point of the icon: it is a document, and clicking it fetches the document."""
+
+    def model(ask) -> Iterator[str]:  # type: ignore[no-untyped-def]
+        yield "FINDINGS about temples" if ask.descriptor == "deep-research" else "ANSWER"
+
+    session, adapter, source = build_session(load_case(CASE), model=model)
+    server = serve(session, adapter, source, port=0)
+    base = f"http://127.0.0.1:{server.httpd.server_address[1]}"
+    seen = watch(server)
+    try:
+        post(base, "/say", {"text": "research the history of Kyoto"})
+        assert until(lambda: reports(seen), timeout=8)
+
+        with urllib.request.urlopen(f"{base}/report/{reports(seen)[0]['id']}", timeout=5) as r:
+            body = r.read().decode("utf-8")
+        assert "FINDINGS about temples" in body
+        assert "the history of Kyoto" in body.splitlines()[0], "no heading to orient by"
+
+        with pytest.raises(urllib.error.HTTPError, match="404"):
+            urllib.request.urlopen(f"{base}/report/nonesuch", timeout=5)
+    finally:
+        server.stop()
+        server.httpd.shutdown()
+
+
+def test_stop_halts_the_long_job_too() -> None:
+    """Pressing stop while the long job worked did nothing at all, because the only thing
+    being abandoned was a conversation that was not speaking. What the job managed before
+    being stopped is still offered, partial: the words were produced and paid for."""
+
+    def model(ask) -> Iterator[str]:  # type: ignore[no-untyped-def]
+        if ask.descriptor == "deep-research":
+            for i in range(200):
+                time.sleep(0.02)
+                yield f"R{i} "
+            return
+        yield "an answer"
+
+    session, adapter, source = build_session(load_case(CASE), model=model)
+    server = serve(session, adapter, source, port=0)
+    base = f"http://127.0.0.1:{server.httpd.server_address[1]}"
+    seen = watch(server)
+    try:
+        post(base, "/say", {"text": "research the history of Kyoto"})
+        assert until(lambda: adapter.in_flight_for("deep-research") == 1, timeout=8)
+        time.sleep(0.5)  # let some of it actually be written
+
+        post(base, "/stop")
+        assert until(lambda: adapter.in_flight == 0, timeout=5), "the request was left in flight"
+        assert until(lambda: reports(seen), timeout=5), "the partial report was never offered"
+        assert marks(seen) == ["stopped"], f"marks: {marks(seen)}"
+
+        # Stopped part way, so it must be short of the two hundred it would have written.
+        assert int(reports(seen)[0]["words"]) < 200, "the job ran to completion after stop"
+    finally:
+        server.stop()
+        server.httpd.shutdown()
+
+
+def test_barging_in_does_not_bin_the_research_you_asked_for() -> None:
+    """Stop means stop everything; typing does not. A question asked while the long job
+    works is not a reason to throw away the work."""
+
+    def model(ask) -> str:  # type: ignore[no-untyped-def]
+        if ask.descriptor == "deep-research":
+            time.sleep(HELD)
+            return "found"
+        return "an answer"
+
+    session, adapter, source = build_session(load_case(CASE), model=model)
+    server = serve(session, adapter, source, port=0)
+    base = f"http://127.0.0.1:{server.httpd.server_address[1]}"
+    try:
+        post(base, "/say", {"text": "research the history of Kyoto"})
+        assert until(lambda: adapter.in_flight_for("deep-research") == 1, timeout=8)
+        post(base, "/say", {"text": "meanwhile name one temple"})
+        time.sleep(0.5)
+        assert adapter.in_flight_for("deep-research") == 1, "the research was abandoned"
+    finally:
+        server.stop()
+        server.httpd.shutdown()

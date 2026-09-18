@@ -23,6 +23,7 @@ import queue
 import threading
 import time
 from collections.abc import Sequence
+from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -32,6 +33,8 @@ from zeos.core.events import (
     FaultRaised,
     IntegrityDemoted,
     JobBlocked,
+    JobCancelled,
+    JobCompleted,
     JobPreempted,
     JobResumed,
     JobSpawned,
@@ -46,7 +49,7 @@ from zeos_chat.llm import LlmAdapter
 from zeos_chat.mail import SUBJECT_SEPARATOR, Letter, MailAdapter
 from zeos_chat.session import Session
 
-__all__ = ["ChatServer", "page", "serve"]
+__all__ = ["ChatServer", "Report", "page", "serve"]
 
 STATIC = Path(__file__).resolve().parent / "static"
 
@@ -54,6 +57,8 @@ MESSAGES = PipeName("user.messages")
 ARRIVALS = PipeName("user.arrivals")
 CANCEL = PipeName("user.cancel")
 MAIL = PipeName("mail.requests")
+TASK = PipeName("actuators.task")
+REPLIES = PipeName("user.replies")
 LETTERS = PipeName("mail.letters")
 
 #: What the mail doorbell carries. One token, like `RING`: the letter goes to
@@ -122,6 +127,39 @@ def _kernel_line(event: Event) -> dict[str, str] | None:
             return None
 
 
+@dataclass
+class Report:
+    """What a background job wrote, collected into one thing a person can open.
+
+    The long job's findings do not belong in the conversation. They arrive over minutes,
+    they are pages long, and they are an answer to a question asked ten turns ago -- run
+    into the transcript they bury whatever the conversation is doing and read as though
+    the chatbot had started rambling. Collected, they are what they actually are: a
+    document that was produced, which you open when you want it.
+
+    Atomic for the same reason. A reply is written a word at a time so an interruption can
+    cut it mid-sentence; a report has no such need, because nobody is waiting on it with
+    their next sentence half typed.
+    """
+
+    job: str
+    subject: str
+    pieces: list[str] = field(default_factory=list[str])
+    done: bool = False
+
+    @property
+    def text(self) -> str:
+        return " ".join(self.pieces)
+
+    @property
+    def words(self) -> int:
+        return len(self.text.split())
+
+    def as_file(self) -> str:
+        """The report as a plain-text file, with a heading a reader can orient by."""
+        return f"{self.subject}\n{'=' * len(self.subject)}\n\n{self.text}\n"
+
+
 class ChatServer:
     """One conversation, one page, and the thread between them."""
 
@@ -147,6 +185,24 @@ class ChatServer:
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._busy = False
+        #: What each background job says it is doing, by job id.
+        #:
+        #: Keyed by job rather than read from `session.pending_task` directly, because
+        #: that world object holds a *value* and there can be more than one job. Two
+        #: research jobs overwrite each other in it, and the first to finish writes
+        #: `none` and clears the line while the other is still working. The world says
+        #: what was last set; this says what is currently running, which is what the
+        #: page is for.
+        self._tasks: dict[Any, str] = {}
+        #: The job whose words are currently going out, so a change of speaker can
+        #: start a new bubble. Two jobs write `user.replies` and the drained sink says
+        #: nothing about who wrote it -- the journal does.
+        self._speaking: Any = None
+        #: Which descriptor each job runs, from the journal. The only way to tell a
+        #: long job's output from the conversation's once both are on one sink.
+        self._descriptor_of: dict[Any, str] = {}
+        #: Reports being collected, and finished ones the page can open, by job.
+        self._reports: dict[str, Report] = {}
         session._on_reply = self._on_reply  # pyright: ignore[reportPrivateUsage]
         session._on_event = self._on_event  # pyright: ignore[reportPrivateUsage]
         if mail is not None:
@@ -183,6 +239,17 @@ class ChatServer:
             return True
         return self._adapter is not None and self._adapter.in_flight > 0
 
+    def _answering(self) -> bool:
+        """Whether *the conversation* is mid-answer, which is not the same as busy.
+
+        A background job holds the machine's attention too, so `_outstanding` is true
+        while research runs -- correct for the logo, wrong for an interruption. Judged by
+        it, a question asked during research was marked "you spoke while the answer was
+        still arriving" when no answer was arriving, and, worse, the barge-in path
+        abandoned an idle conversation, which cut its *next* reply short after one word.
+        """
+        return self._adapter is not None and self._adapter.in_flight_for("converse") > 0
+
     def stop(self) -> None:
         self._stop.set()
 
@@ -192,7 +259,7 @@ class ChatServer:
         """A message from the page. Two deliveries, and only one carries the words."""
         # Read before delivering: a message is a barge-in if an answer was still coming
         # when it was sent, and a moment later that is no longer knowable.
-        interrupting = self._outstanding()
+        interrupting = self._answering()
         if interrupting:
             # Barge-in abandons the answer in progress, exactly as stop does. Without this
             # the vector fired, the mark was drawn, and the old answer carried on writing
@@ -202,7 +269,7 @@ class ChatServer:
             # Before the message is delivered, not after: both go through the session's
             # queue in order, and the job has to be woken off the reply pipe before what
             # wakes it next is waiting on stdin.
-            self._abandon()
+            self._abandon("converse")
         self.session.deliver(MESSAGES, text)
         self.session.deliver(ARRIVALS, RING)
         if interrupting:
@@ -240,6 +307,9 @@ class ChatServer:
         person has already declined. And the job is told, because a job part way through
         writing an answer is not waiting on anything and cannot be woken.
         """
+        # Everything outstanding, not just the conversation: pressing stop while the long
+        # job is pouring text onto the page did nothing at all, because the only thing
+        # being abandoned was a conversation that was not speaking.
         was_working = self._outstanding()
         self.session.deliver(CANCEL, "stop")
         dropped = self._abandon()
@@ -256,6 +326,8 @@ class ChatServer:
         with self._lock:
             self._watchers.append(stream)
             stream.put(self._frame("busy", {"busy": self._busy}))
+            # A tab opened while background jobs are running should say so at once.
+            stream.put(self._frame("task", {"tasks": self._running_tasks()}))
             # Whether a send would actually leave the machine. The page says so on the
             # button, because "simulated" is the difference between a demonstration and
             # an email somebody receives.
@@ -273,6 +345,12 @@ class ChatServer:
             )
         return stream
 
+    def report(self, name: str) -> Report | None:
+        """A finished report, by id. Unfinished ones are not offered."""
+        with self._lock:
+            report = self._reports.get(name)
+            return report if report is not None and report.done else None
+
     def unwatch(self, stream: queue.Queue[str]) -> None:
         with self._lock:
             if stream in self._watchers:
@@ -280,18 +358,26 @@ class ChatServer:
 
     # -- internals ----------------------------------------------------------
 
-    def _abandon(self) -> int:
-        """Give up on the answer in progress, in both places it is held.
+    #: What `_abandon` can give up on. Everything that answers through the model adapter,
+    #: because "stop" means the words stop arriving -- a person watching the long job pour
+    #: text onto the page does not care which job is producing it.
+    ABANDONABLE = ("converse", "deep-research")
+
+    def _abandon(self, *descriptors: str) -> int:
+        """Give up on answers in progress, in both places each is held.
 
         The device forgets the request -- so the stream is closed at the source rather than
-        paid for and discarded -- and the job is told, because the two states a
-        conversation can be caught in need different things. Parked on the reply pipe, it
-        is woken by what the device sends back. Part way through writing an answer out, it
-        is waiting on nothing and only the flag reaches it.
+        paid for and discarded -- and the job is told, because the two states a job can be
+        caught in need different things. Parked on the reply pipe, it is woken by what the
+        device sends back. Part way through writing an answer out, it is waiting on
+        nothing and only the flag reaches it.
         """
-        dropped = 0 if self._adapter is None else self._adapter.abandon("converse")
-        if self._source is not None:
-            self._source.abandon("converse")
+        dropped = 0
+        for descriptor in descriptors or self.ABANDONABLE:
+            if self._adapter is not None:
+                dropped += self._adapter.abandon(descriptor)
+            if self._source is not None:
+                self._source.abandon(descriptor)
         return dropped
 
     def posted(self, letter: Letter, outcome: str) -> None:
@@ -300,13 +386,92 @@ class ChatServer:
         self._set_busy(False)
 
     def _on_reply(self, pipe: PipeName, text: str) -> None:
-        self._publish("reply", {"text": text})
+        report = self._reports.get(str(self._speaking))
+        if report is not None and not report.done:
+            # Collected, not shown. What the long job writes is a document being built,
+            # and a document being built is not a turn in a conversation.
+            report.pieces.append(text)
+            return
+        self._publish("reply", {"text": text, "job": str(self._speaking)})
+
+    def _finish_report(self, job: Any) -> None:
+        """Close a report and offer it, once the job that was writing it has ended."""
+        report = self._reports.get(str(job))
+        if report is None or report.done:
+            return
+        report.done = True
+        self._publish(
+            "report",
+            {
+                "id": report.job,
+                "subject": report.subject,
+                "words": report.words,
+            },
+        )
+
+    REPORTED_BY = "deep-research"
+
+    def _reporting(self, job: Any) -> bool:
+        """Whether this job's words are a report rather than conversation."""
+        return self._descriptor_of.get(job) == self.REPORTED_BY
 
     def _on_event(self, new: Sequence[Event]) -> None:
         for event in new:
+            if isinstance(event, JobSpawned):
+                self._descriptor_of[event.job] = str(event.descriptor)
+            if isinstance(event, PipeWritten) and event.pipe == REPLIES and event.job is not None:
+                # Who is about to be drained. The journal is reported before the sink is
+                # emptied, and one tick is one job's command, so this is the writer of
+                # whatever comes out next. Two jobs share `user.replies` and the drained
+                # text says nothing about which wrote it; the page needs to know, or the
+                # long job's findings run on into the conversation's bubble.
+                self._speaking = event.job
+            if isinstance(event, PipeWritten) and event.latched and event.pipe == TASK:
+                # The write that latches `session.pending_task`, attributed to the job that
+                # made it -- which is the part the world object itself cannot tell us.
+                task = " ".join(event.text)
+                self._note_task(event.job, task)
+                if self._reporting(event.job) and task and task != "none":
+                    # The subject, taken where the job itself records it rather than
+                    # guessed from the text it goes on to write.
+                    self._reports.setdefault(
+                        str(event.job),
+                        # Stripped once, here, so the chip and the file agree. The job
+                        # writes "looking into X" because that line is what it is *doing*;
+                        # the document is about X.
+                        Report(
+                            job=str(event.job),
+                            subject=task.removeprefix("looking into ").strip() or task,
+                        ),
+                    )
+            elif isinstance(event, JobCompleted | JobCancelled):
+                self._finish_report(event.job)
+                # A job that ended without clearing its line would otherwise be shown as
+                # working for ever. `deep-research` does clear it; a job that faults or is
+                # cancelled does not, and that is exactly when it matters.
+                self._note_task(event.job, "none")
             line = _kernel_line(event)
             if line is not None:
                 self._publish("kernel", line)
+
+    def _note_task(self, job: Any, task: str) -> None:
+        """Record what one job is doing, and tell the page if the set changed."""
+        with self._lock:
+            before = self._running_tasks()
+            if task and task != "none":
+                self._tasks[job] = task
+            else:
+                self._tasks.pop(job, None)
+            now = self._running_tasks()
+            if now == before:
+                return
+            line = self._frame("task", {"tasks": now})
+            for stream in self._watchers:
+                stream.put(line)
+
+    def _running_tasks(self) -> list[str]:
+        """What the page shows, oldest job first. Call under the lock."""
+        return [self._tasks[job] for job in sorted(self._tasks, key=str)]
 
     def _set_busy(self, busy: bool) -> None:
         """Whether the kernel has work. The logo animates on this and rests otherwise, so
@@ -353,6 +518,12 @@ def _handler(server: ChatServer) -> type[BaseHTTPRequestHandler]:
                 self._send(200, page().encode("utf-8"), "text/html; charset=utf-8")
             elif self.path == "/events":
                 self._stream()
+            elif self.path.startswith("/report/"):
+                report = server.report(self.path.removeprefix("/report/"))
+                if report is None:
+                    self._send(404, b"no such report", "text/plain; charset=utf-8")
+                else:
+                    self._send(200, report.as_file().encode("utf-8"), "text/plain; charset=utf-8")
             else:
                 self._send(404, b"not found", "text/plain; charset=utf-8")
 

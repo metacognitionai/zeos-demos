@@ -165,6 +165,27 @@ words already written stay on the page.
 **Press Email.** A separate job is dispatched at priority 40 to do it, and its single
 write is the only effect in this whole system that leaves the machine.
 
+**Ask it to research something.** Say "research the history of Kyoto temples", or "look
+into" something, and the conversation hands the work to a second job instead of answering
+it. You get an acknowledgement immediately — composed in Python, so it costs no model call
+at all — and the conversation is listening again before the research has started.
+
+**The findings come back as a document, not as talk.** When the job finishes, a file
+appears in the transcript with the subject and its length; click it to read it. That is
+deliberate: the findings are pages long, they answer something you asked many turns ago,
+and poured into the conversation they bury whatever it is currently doing. As a document
+they are what they actually are — a thing that was produced, which you open when you want
+it — and the conversation underneath stays a conversation.
+
+That job runs at priority 90, below everything. Keep talking while it works: your
+questions are answered at once, because the research job is either blocked on the model or
+outranked by anything you do. The journal shows it spawned, and shows the conversation
+parked back on you a moment later. This is the arrangement the whole design is for, and it
+is the one thing a single chat loop cannot imitate.
+
+A bar under the header lists the background jobs while they run, one line each, and is
+absent when there are none. Ask for a second thing to be looked into and both appear.
+
 **Say nothing at all.** An idle conversation costs nothing. It is not polling and it is
 not looping; it is blocked, and a blocked job runs no forward passes. The logo rests and
 the journal shows the job waiting on a pipe.
@@ -203,9 +224,14 @@ question, which is what to say.
 The two handlers do their whole work in their frontmatter. Being dispatched is what took
 the machine away from whatever was running, and that is the entire job.
 
-The page drives `converse`, the two handlers and `send-email`. `deep-research` is in the
-tree as the long job that runs at priority 90, underneath a conversation that stays
-responsive above it; nothing on the page dispatches it.
+`deep-research` is dispatched by the conversation itself rather than from the page: when
+you ask for something to be looked into, `converse` spawns it. It may do that because it
+declares `deep-research` under `children:`, and that declaration is enforced by the kernel
+— a job spawning anything it has not declared is a capability fault, not a missing check.
+
+Nothing is passed to the child when it starts. It reads what it is for out of
+`session.topic`, which the conversation wrote a moment earlier and which the kernel keeps
+current in the child's window, so the brief survives however long the job runs.
 
 **The model is a device on the end of a pipe.** A job that needs it writes a request and
 blocks on the reply, exactly as it would for any device. That is what keeps the kernel
