@@ -184,7 +184,7 @@ and give the tapes a `spawn deep-research;`. Until then the tapes do not spawn, 
 
 ## 3. The case tree
 
-`zeos-chat/cases/chat-scripted/`, laid out as `descriptor/loader.py` accepts and as spec
+`zeos-chat/cases/chat/`, laid out as `descriptor/loader.py` accepts and as spec
 §2 specifies, with `script:` blocks and an `events.jsonl`.
 
 ```

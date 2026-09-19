@@ -17,7 +17,7 @@ from zeos.descriptor.loader import load_case
 from zeos_chat.build import build_session
 from zeos_chat.jobs import research_subject, status_of, wants_research
 
-CASE = Path(__file__).resolve().parents[1] / "cases" / "chat-scripted"
+CASE = Path(__file__).resolve().parents[1] / "cases" / "chat"
 MESSAGES = PipeName("user.messages")
 ARRIVALS = PipeName("user.arrivals")
 TASK = PipeName("actuators.task")

@@ -39,7 +39,7 @@ Two other commands, if you want them:
 uv run zeos-chat lint
 
 # Replay a fixed schedule of events in the terminal, with the journal printed as it goes.
-uv run zeos-chat run --events cases/chat-scripted/events.jsonl
+uv run zeos-chat run --events cases/chat/events.jsonl
 ```
 
 `serve` also takes `--host`, `--port`, and `--journal <path>` to write the kernel's
@@ -197,7 +197,7 @@ declaring what the kernel enforces — priority, which pipes it may touch, what 
 — and a body in plain English describing who it is.
 
 ```
-cases/chat-scripted/
+cases/chat/
 ├── goals/converse.md              priority 60 — the resident conversation
 ├── handlers/new-message.md        priority 10 — barge-in
 ├── handlers/cancel.md             priority  5 — the stop reflex

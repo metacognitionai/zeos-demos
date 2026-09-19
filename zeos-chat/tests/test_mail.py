@@ -25,7 +25,7 @@ from zeos_chat.mail import (
     letter_from,
 )
 
-CASE = Path(__file__).resolve().parents[1] / "cases" / "chat-scripted"
+CASE = Path(__file__).resolve().parents[1] / "cases" / "chat"
 REQUESTS = PipeName("mail.requests")
 LETTERS = PipeName("mail.letters")
 OUTBOX = PipeName("mail.outbox")

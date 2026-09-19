@@ -21,7 +21,7 @@ from zeos_chat.build import build_session
 from zeos_chat.llm import END, LLM_PIPES, Ask, LlmAdapter, StubModel
 from zeos_chat.session import Session
 
-CASE = Path(__file__).resolve().parents[1] / "cases" / "chat-scripted"
+CASE = Path(__file__).resolve().parents[1] / "cases" / "chat"
 ASK, HEAR = LLM_PIPES["converse"]
 
 

@@ -28,7 +28,7 @@ from zeos_chat.build import build_session
 from zeos_chat.llm import Ask
 from zeos_chat.web.server import ChatServer, Report, page, serve
 
-CASE = Path(__file__).resolve().parents[1] / "cases" / "chat-scripted"
+CASE = Path(__file__).resolve().parents[1] / "cases" / "chat"
 MESSAGES = PipeName("user.messages")
 ARRIVALS = PipeName("user.arrivals")
 CANCEL = PipeName("user.cancel")

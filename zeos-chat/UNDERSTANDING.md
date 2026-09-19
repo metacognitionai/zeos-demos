@@ -114,7 +114,7 @@ Two further honesty constraints from v0.3, to be reflected in whatever the page 
 
 ## 5. Staging (spec §6), as I read it for this demo
 
-1. `cases/chat-scripted/` + `events.jsonl` — proves the wiring, replays byte-identically,
+1. `cases/chat/` + `events.jsonl` — proves the wiring, replays byte-identically,
    needs no key and no weights. Runs two ways: `--machine scripted` and `--machine seat`.
 2. Swap in a Claude `CommandSource`. Same case, no descriptor changes. Expect
    `malformed_request` faults; set `on_fault` for them deliberately.

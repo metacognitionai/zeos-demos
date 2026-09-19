@@ -16,7 +16,7 @@ from zeos.core.ids import PipeName
 
 from zeos_chat.session import Session
 
-CASE = Path(__file__).resolve().parents[1] / "cases" / "chat-scripted"
+CASE = Path(__file__).resolve().parents[1] / "cases" / "chat"
 MESSAGES = PipeName("user.messages")
 ARRIVALS = PipeName("user.arrivals")
 REPLIES = PipeName("user.replies")

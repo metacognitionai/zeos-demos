@@ -43,7 +43,7 @@ from zeos_chat.mail import MailAdapter
 
 __all__ = ["main"]
 
-CASE = Path(__file__).resolve().parents[2] / "cases" / "chat-scripted"
+CASE = Path(__file__).resolve().parents[2] / "cases" / "chat"
 
 
 def findings(bundle: CaseBundle):
