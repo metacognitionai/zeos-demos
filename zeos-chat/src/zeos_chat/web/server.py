@@ -63,6 +63,7 @@ INTERCOM = PipeName("guest.intercom")
 TASK = PipeName("actuators.task")
 REPLIES = PipeName("user.replies")
 LETTERS = PipeName("mail.letters")
+REPORT = PipeName("research.report")
 
 #: What the page says at a door to ask for the conversation to be sent. It has to be
 #: one of the phrasings `send-email` declares; anything else is refused by the kernel
@@ -337,10 +338,31 @@ class ChatServer:
         """
         self._asked_as = speaker if speaker in DOORS else "owner"
         if what == "report":
+            if not self._findings_waiting():
+                # A second press, with nothing left to hand over. Said here rather than
+                # dispatched, because a job spawned now would block on an empty pipe for
+                # ever and the press would go unanswered -- which is how this was found.
+                #
+                # This is not the page deciding the request. The *first* press went to
+                # the kernel and the kernel refused it; what the page is reporting is the
+                # documented behaviour of an ordinary pipe, checked against the pipe
+                # itself rather than assumed.
+                self._publish(
+                    "mark",
+                    {
+                        "mark": "spent",
+                        "text": (
+                            "nothing left to send — an ordinary pipe carries a message "
+                            "once, and the findings went to the job that was refused"
+                        ),
+                    },
+                )
+                return
             # Nothing to hand over: the findings are already on a pipe, written by the job
             # that went and read them and carrying that job's integrity. Passing them
             # through the page and back would launder exactly the provenance this exists
-            # to demonstrate.
+            # to demonstrate -- the page writes at its own integrity, so a re-delivered
+            # report would clear the bar and the research would actually be sent.
             self.session.deliver(DOORS.get(speaker, CONSOLE), ASKED_REPORT)
             self._set_busy(True)
             return
@@ -349,6 +371,15 @@ class ChatServer:
         self.session.deliver(LETTERS, SUBJECT_SEPARATOR.join((subject, body)))
         self.session.deliver(DOORS.get(speaker, CONSOLE), ASKED)
         self._set_busy(True)
+
+    def _findings_waiting(self) -> bool:
+        """Whether anything is on the report pipe for a job to read.
+
+        Asked of the kernel rather than tracked here, so the answer cannot drift from
+        what a spawned job would actually find.
+        """
+        pipe = self.session.kernel.pipes.get(REPORT)
+        return pipe is not None and pipe.available > 0
 
     def interrupt(self) -> None:
         """Stop, in the three places it has to happen.

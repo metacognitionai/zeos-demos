@@ -324,6 +324,17 @@ li.grouped { margin-top: -8px; }
    it says what happened rather than labelling it. */
 #messages li.mark.refused { white-space: normal; text-transform: none; letter-spacing: 0; }
 
+/* Nothing left on the pipe. Soft rather than accented, because no decision was taken --
+   the message had already been read, which is what an ordinary pipe does. */
+#messages li.mark.spent {
+  white-space: normal;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--soft);
+}
+#messages li.mark.spent::before,
+#messages li.mark.spent::after { background: var(--soft); }
+
 /* -- the composer -------------------------------------------------------- */
 
 .composer {
