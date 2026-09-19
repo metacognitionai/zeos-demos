@@ -250,6 +250,19 @@ li.grouped { margin-top: -8px; }
 }
 .document-head[aria-expanded="true"]::after { transform: rotate(-135deg) translate(-2px, -2px); }
 
+/* Asking for the findings to go out. Quiet, and inside the document it acts on. */
+.document-send {
+  align-self: flex-start;
+  margin: 0 14px 10px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--soft);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.document-send:hover { color: var(--ink); }
+
 .document-body {
   margin: 0;
   padding: 0 14px 12px;

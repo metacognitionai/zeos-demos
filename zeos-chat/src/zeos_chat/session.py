@@ -30,6 +30,7 @@ from zeos.machine.seat import CommandSeat, CommandSource
 from zeos_chat.abi import CHAT
 from zeos_chat.llm import LlmAdapter
 from zeos_chat.mail import MailAdapter
+from zeos_chat.retrieval import RetrievalAdapter
 
 MAIL_OUTBOX = PipeName("mail.outbox")
 
@@ -50,6 +51,7 @@ class Session:
         journal: Path | None = None,
         llm: LlmAdapter | None = None,
         mail: MailAdapter | None = None,
+        retrieval: RetrievalAdapter | None = None,
         seed: int = 0,
         block_size: int = 16,
         max_ticks: int = 100_000,
@@ -61,6 +63,7 @@ class Session:
         self._on_event = on_event
         self._llm = llm
         self._mail = mail
+        self._web = retrieval
         self._reported = 0
         self._settled = 0
         self.now_ns = 0
@@ -154,6 +157,10 @@ class Session:
                 # and delivers back through the queue, so the tick stays short.
                 if self._llm is not None and self._llm.handles(pipe.name):
                     self._llm.ask(pipe.name, text)
+                elif self._web is not None and self._web.handles(pipe.name):
+                    # The same shape as the model: a drained request, answered elsewhere,
+                    # delivered back through the door every device event uses.
+                    self._web.ask(pipe.name, text)
                 elif self._on_reply is not None:
                     self._on_reply(pipe.name, text)
 

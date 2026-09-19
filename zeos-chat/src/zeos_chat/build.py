@@ -16,6 +16,7 @@ from zeos.descriptor.loader import CaseBundle
 from zeos_chat.jobs import ProgramSource
 from zeos_chat.llm import Ask, LlmAdapter, StubModel
 from zeos_chat.mail import MailAdapter
+from zeos_chat.retrieval import RetrievalAdapter
 from zeos_chat.session import Session
 
 __all__ = ["MODELS", "build_session", "personas_for"]
@@ -90,6 +91,8 @@ def build_session(
         llm=adapter,
         # Simulated unless MAIL_LIVE says otherwise -- see mail.py.
         mail=mail if mail is not None else MailAdapter(),
+        # Canned pages, so retrieval needs no network and replays identically.
+        retrieval=RetrievalAdapter(lambda pipe, text: box[0].deliver(pipe, text)),
         journal=journal,
         seed=seed,
         block_size=block_size,

@@ -200,6 +200,19 @@ function offerReport(id, subject, words) {
   size.textContent = `${words} words`;
   head.append(label, size);
 
+  // Asking for the findings to be sent. A different request from emailing the
+  // conversation -- a different phrasing, matched by a different descriptor reading a
+  // different pipe -- which is why one of them goes out and this one does not.
+  const send = document.createElement("button");
+  send.className = "document-send";
+  send.type = "button";
+  send.textContent = "email this";
+  send.title = "Asks for the findings to be sent, as whoever the selector says";
+  send.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await post("/email", { what: "report", speaker: speaker.value, body: "", subject });
+  });
+
   const body = document.createElement("pre");
   body.className = "document-body";
   body.hidden = true;
@@ -218,7 +231,7 @@ function offerReport(id, subject, words) {
     body.hidden = !open;
   });
 
-  card.append(head, body);
+  card.append(head, send, body);
   li.appendChild(card);
   messages.appendChild(li);
   lastWasMine = null;

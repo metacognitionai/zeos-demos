@@ -23,7 +23,13 @@ ARRIVALS = PipeName("user.arrivals")
 TASK = PipeName("actuators.task")
 
 
-def _run(message: str, ticks: int = 200) -> tuple[object, list[str]]:
+#: Ticks a run is given. Generous, because the long job now fetches before it asks: a
+#: budget sized for the old command sequence stopped the job mid-way and the test read
+#: that as a job leaving its status line behind.
+TICKS = 400
+
+
+def _run(message: str, ticks: int = TICKS) -> tuple[object, list[str]]:
     said: list[str] = []
     session, _, _ = build_session(load_case(CASE), on_reply=lambda p, t: said.append(t))
     session.boot()

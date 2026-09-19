@@ -1,10 +1,10 @@
 # The conversation's wiring.
 #
 # Ring and principal are assigned here, by the kernel, from provenance -- never claimed
-# by the content that arrives. Everything on this list is ring 2: nothing in this case
-# retrieves from the outside world. Untrusted material would come in at ring EXTERNAL,
-# and a job that had read it would need an endorser before it could act -- neither is
-# exercised here.
+# by the content that arrives. Most of this list is TRUSTED, and the two exceptions are
+# where the interesting half of the case lives: `web.results` carries the outside world
+# in, and `guest.intercom` carries somebody who is not the owner. Both are EXTERNAL, and
+# a job that reads either falls to that level.
 #
 # There are three kinds of pipe and this case uses all three. An ordinary pipe carries a
 # *message*: appended, read once, gone. An actuator -- declared by `world_object:` --
@@ -169,6 +169,49 @@
   world_object: mail.sent
   capacity: 1024
 
+# What the long job found, for anything that wants to *act* on it.
+#
+# Not the same thing as `user.replies`, and the difference is the one this file opens with.
+# A sink is a history the driver empties for a person to read; this is an ordinary pipe,
+# and a job reads it. The findings go to both because they have two audiences.
+#
+# Ring TRUSTED, and that changes nothing about what arrives here. A pipe does not launder
+# its writer: content written by a job at integrity 3 reaches its reader at 3 however
+# trusted the pipe, so a job that reads this after `deep-research` has been out reading
+# the web is demoted exactly as `deep-research` was. Trust is not restored by being passed
+# along; only an endorsement restores it, and nothing here endorses.
+- name: research.report
+  ring: TRUSTED
+  principal: peer_job
+  capacity: 8192
+
+# -- the outside world --------------------------------------------------------
+#
+# Retrieval, and the only thing in this case that is genuinely untrusted.
+#
+# `web.results` is EXTERNAL, and that ring is the whole mechanism. A job that reads from
+# here falls to the integrity of what it read -- the low-water-mark rule, applied by the
+# kernel without the job cooperating or even being told. `deep-research` goes out and
+# reads, so `deep-research` is demoted, and what it writes afterwards carries that with
+# it.
+#
+# Nothing inspects what arrives. A retrieved page that tries to issue instructions gets
+# exactly the treatment a harmless one does, because the refusal that follows is about
+# where the text came from and not about what it says. Scanning it would be the weaker
+# guarantee: it would work only for the phrasings somebody thought of.
+
+- name: web.queries
+  ring: TRUSTED
+  principal: device
+  sink: true
+  capacity: 1024
+
+- name: web.results
+  ring: EXTERNAL
+  principal: device
+  device: true
+  capacity: 8192
+
 # -- the model ----------------------------------------------------------------
 #
 # A job reaches the model the way it reaches any other device: it writes a request and
@@ -201,9 +244,9 @@
   capacity: 8192
 
 # The long job's own pair. Note the ring: what comes back is still TRUSTED here, because
-# the model is being asked to compose, not to fetch. Retrieval would be the interesting
-# case: a pipe carrying the outside world in at EXTERNAL, and the demotion that follows
-# -- a model's own words are not what makes a job dirty.
+# the model is being asked to compose, not to fetch. A model's own words are not what
+# makes a job dirty -- `web.results` above is, and by the time the long job asks this one
+# to write up what it found, it has already been demoted by having read that.
 - name: llm.research.requests
   ring: TRUSTED
   principal: device

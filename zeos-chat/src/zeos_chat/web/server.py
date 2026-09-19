@@ -69,6 +69,11 @@ LETTERS = PipeName("mail.letters")
 #: with "nothing is listening", which is the front door working rather than failing.
 ASKED = "email me this conversation"
 
+#: And what it says to ask for the findings instead. A different phrasing, matched
+#: by a different descriptor, reading a different pipe -- which is the whole reason
+#: the two can end differently.
+ASKED_REPORT = "email me the research"
+
 #: Which door each speaker reaches. Identity is the door's, not the sentence's: there
 #: is no field in the request saying who this is, because a field like that is a field
 #: a sentence could fill in.
@@ -172,6 +177,10 @@ class Report:
         underneath it.
         """
         return f"{self.text}\n"
+
+
+#: The faults that mean somebody was refused, as opposed to something breaking.
+REFUSALS = (FaultKind.CAPABILITY, FaultKind.PRIVILEGE)
 
 
 def _pipe_in(detail: str) -> str:
@@ -311,7 +320,9 @@ class ChatServer:
         # the span the person is watching for a sign of life.
         self._set_busy(True)
 
-    def email(self, subject: str, body: str, speaker: str = "owner") -> None:
+    def email(
+        self, subject: str, body: str, speaker: str = "owner", what: str = "conversation"
+    ) -> None:
         """Ask, as somebody, for the conversation to be sent.
 
         Note what is *not* here: no check that mail is configured, no composing, no
@@ -324,10 +335,18 @@ class ChatServer:
         The speaker picks a *door*, not a field in the request. A field saying who this is
         would be a field a sentence could fill in.
         """
+        self._asked_as = speaker if speaker in DOORS else "owner"
+        if what == "report":
+            # Nothing to hand over: the findings are already on a pipe, written by the job
+            # that went and read them and carrying that job's integrity. Passing them
+            # through the page and back would launder exactly the provenance this exists
+            # to demonstrate.
+            self.session.deliver(DOORS.get(speaker, CONSOLE), ASKED_REPORT)
+            self._set_busy(True)
+            return
         # The letter first, the request second. A job dispatched before the content is
         # there blocks on an empty pipe.
         self.session.deliver(LETTERS, SUBJECT_SEPARATOR.join((subject, body)))
-        self._asked_as = speaker if speaker in DOORS else "owner"
         self.session.deliver(DOORS.get(speaker, CONSOLE), ASKED)
         self._set_busy(True)
 
@@ -512,18 +531,25 @@ class ChatServer:
                             subject=task.removeprefix("looking into ").strip() or task,
                         ),
                     )
-            elif isinstance(event, FaultRaised) and event.fault is FaultKind.CAPABILITY:
+            elif isinstance(event, FaultRaised) and event.fault in REFUSALS:
                 # The barrier, in the transcript. The journal panel shows the fault as a
-                # structural fact; this says what it meant to the person who asked, and
-                # names them -- two refusals in a row are two readable facts rather than
-                # the same sentence twice.
+                # structural fact; this says what it meant to the person who asked.
+                #
+                # The two kinds are worth telling apart, because they answer different
+                # questions. A capability fault is about *who asked*: this speaker was
+                # never given that pipe. A privilege fault is about *what the job has
+                # read*: the speaker holds the capability and the job still cannot use it,
+                # because its integrity fell to the level of something it was exposed to.
+                pipe = _pipe_in(event.detail)
                 self._publish(
                     "mark",
                     {
                         "mark": "refused",
                         "text": (
-                            f"refused — {self._asked_as} holds no capability for "
-                            f"{_pipe_in(event.detail)}"
+                            f"refused — {self._asked_as} holds no capability for {pipe}"
+                            if event.fault is FaultKind.CAPABILITY
+                            else f"refused — the job read something untrusted, so it no "
+                            f"longer clears the integrity {pipe} requires"
                         ),
                     },
                 )
@@ -623,8 +649,11 @@ def _handler(server: ChatServer) -> type[BaseHTTPRequestHandler]:
                 subject = str(body.get("subject", "")).strip()
                 transcript = str(body.get("body", "")).strip()
                 speaker = str(body.get("speaker", "owner")).strip()
-                if transcript:
-                    server.email(subject or "Your ZEOS Chat conversation", transcript, speaker)
+                what = str(body.get("what", "conversation")).strip()
+                if transcript or what == "report":
+                    server.email(
+                        subject or "Your ZEOS Chat conversation", transcript, speaker, what
+                    )
             else:
                 self._send(404, b"not found", "text/plain; charset=utf-8")
                 return
