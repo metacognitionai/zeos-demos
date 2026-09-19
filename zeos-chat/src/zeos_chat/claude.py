@@ -43,16 +43,17 @@ DEFAULT_MODEL = "claude-opus-5"
 
 #: How much the model may spend on one answer, by descriptor.
 #:
-#: This budget covers the model's *thinking* as well as the words it writes, which is the
-#: whole reason it is here. At 2048 the long job spent the entire allowance reasoning and
-#: emitted no text at all -- `stop_reason: max_tokens`, one `thinking` block, zero
-#: characters -- and the empty-answer fallback below turned that into "I have nothing to
-#: add." The conversation was quietly hitting the same ceiling and ending replies in the
-#: middle of a sentence.
+#: The budget covers the model's *thinking* as well as the words it writes, which is the
+#: whole reason it is per-descriptor. Too small and it buys nothing: at 2048 the long job
+#: spent the entire allowance reasoning and emitted no text at all -- `stop_reason:
+#: max_tokens`, one `thinking` block, zero characters -- which the empty-answer fallback
+#: reported as "I have nothing to add.", while the conversation quietly hit the same
+#: ceiling and ended replies mid-sentence.
 #:
-#: So the job that is told to answer thoroughly gets room to, and the one told to be brief
-#: gets enough that being brief is its choice rather than the cap's.
-ANSWER_TOKENS: dict[str, int] = {"deep-research": 16384}
+#: Too large and it is an invitation to spend it. At 16384 the long job thought for four
+#: and a half minutes before writing a word, for an answer that took half a minute to
+#: write. A budget is a bound on patience as much as on length.
+ANSWER_TOKENS: dict[str, int] = {"deep-research": 6144}
 DEFAULT_ANSWER_TOKENS = 4096
 
 #: What a person is told when the answer stopped because the budget ran out rather than
@@ -76,14 +77,27 @@ word.\
 """
 
 
-#: The long job's shape, because the default one argues with its persona. `deep-research`
-#: is told to take the time it needs and that a short answer wastes the arrangement; a
-#: system prompt that then demands three short paragraphs and says nobody is paying by the
-#: word is handing it two instructions with no way to satisfy both.
-THOROUGH = """Answer as fully as the question deserves, in paragraphs separated by the character
-{separator}. Do not number them, do not use headings, and do not use the character
-{separator} for anything else. Length is not a virtue in itself, but this is the long job:
-say what is actually worth knowing rather than what fits in a turn."""
+#: The long job's shape. It is separate from ``SHAPE`` because the conversation's shape
+#: argues with this job's persona: the descriptor is told it exists to do more than a turn
+#: could, and "nobody is paying by the word" is the opposite instruction.
+#:
+#: It is also a *timing* instruction, which was not obvious. Told to answer as fully as the
+#: question deserved, the model reasoned for four and a half minutes before writing a word
+#: -- 274s to the first word, 306s in total, of which the writing was 32s. Almost all of
+#: the wait was deciding how much there was to say.
+#:
+#: Bounding it needs the body and this to agree, and the second attempt proved it: with the
+#: body still saying "take the time it needs" and "a short answer is a waste of the
+#: arrangement" while this asked for a brisk briefing, the model split the difference the
+#: worst way round -- 113s of thinking for sixty words. With both saying the same thing:
+#: 86s to the first word, 102s in total, 513 words. The persona and the shape are one
+#: instruction in two files, and a contradiction between them is paid for in silence.
+THOROUGH = """Answer in four to eight paragraphs, separated by the character {separator}. Do not number
+them, do not use headings, and do not use the character {separator} for anything else.
+
+This is the long job, so go further than a single turn would -- a briefing somebody could
+act on, not a paragraph they could have had instantly. A briefing, though, and not a
+survey: decide what matters and write that."""
 
 #: The shape each descriptor is given, defaulting to ``SHAPE``.
 SHAPES: dict[str, str] = {"deep-research": THOROUGH}

@@ -138,6 +138,20 @@ RESEARCH_PHRASES = (
 )
 
 
+#: Words a request may open with before it gets to the point. Stripped one at a time, so
+#: "I would like you to research X" reduces to "research X" and is recognised, while
+#: "a question asked while research runs" does not reduce at all and is not.
+#:
+#: Position alone cannot separate those two -- the trigger sits at the fifth word in one
+#: and the sixth in the other -- and the actual difference is grammatical: a request opens
+#: with the ask, and anywhere else the word is being used rather than said. This is the
+#: cheap approximation of that. It is a recogniser, not a parser, and it is the piece a
+#: phrasing table would replace.
+POLITENESS = frozenset(
+    "please can could would will you i i'd id like to want need me us go and now ok okay hey".split()
+)
+
+
 def research_subject(message: str) -> str:
     """What this message wants looked into, or "" if it wants an ordinary answer.
 
@@ -146,18 +160,18 @@ def research_subject(message: str) -> str:
     "looking into research the history of Kyoto" is quoting the instruction back rather
     than naming the work.
     """
-    said = " ".join(message.split())
-    lowered = said.lower()
-    found = [(lowered.find(p), p) for p in RESEARCH_PHRASES if p in lowered]
-    if not found:
+    words = " ".join(message.split()).split()
+    while words and words[0].lower().strip(",") in POLITENESS:
+        words.pop(0)
+    opening = " ".join(words)
+    lowered = opening.lower()
+    phrase = next((p for p in RESEARCH_PHRASES if lowered.startswith(p)), None)
+    if phrase is None:
         return ""
-    at, phrase = min(found)
-    # Rejoined on whitespace: cutting a phrase out of the middle leaves the space
-    # before it and the space after it, and a doubled space goes into the status line.
-    subject = " ".join(f"{said[:at]} {said[at + len(phrase) :]}".split()).strip(" ,.:;-")
+    subject = opening[len(phrase) :].strip(" ,.:;-")
     # A bare "do some research" names nothing; the conversation's topic is the best
     # available subject, and that is what the child will read anyway.
-    return subject or said
+    return subject or opening
 
 
 def wants_research(message: str) -> bool:
@@ -290,17 +304,12 @@ def deep_research(ctx: JobContext) -> Iterator[str]:
 
     yield f"write ask research this thoroughly and report what you find: {payload(subject)};"
 
-    # The heading waits for the first words rather than announcing them. Written up front
-    # it said "Here is what I found on X." and was then followed by several minutes of
-    # nothing while the model thought -- a promise the job had not yet kept.
-    announced = False
+    # No heading. What this job writes is collected into a document that the page labels
+    # with the subject, so a first line naming the subject said it twice.
     while True:
         yield "read hear;"
         text, ended = stream_piece(ctx.arrival)
         if text:
-            if not announced:
-                announced = True
-                yield f"write stdout Here is what I found on {payload(subject)}.;"
             yield f"write stdout {payload(text)};"
         if ended or ctx.abandoned:
             ctx.abandoned = False

@@ -266,7 +266,8 @@ def test_the_long_job_is_not_told_to_be_brief() -> None:
     words(m, Ask(descriptor="converse", prompt="q", reply_to="x"))  # type: ignore[arg-type]
 
     long_job, turn = client.systems
+    assert long_job != turn, "the long job was given the conversation's shape"
     assert "nobody is paying by the word" not in long_job
-    assert "as fully as the question deserves" in long_job
+    assert "go further than a single turn" in long_job
     assert "one to three short paragraphs" in turn, "the conversation still answers briefly"
     assert PARAGRAPH_SEPARATOR in long_job, "both shapes must explain the separator"

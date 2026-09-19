@@ -48,11 +48,26 @@ def test_the_long_job_is_asked_for_in_words_and_not_by_a_button() -> None:
     assert not wants_research("what is the weather")
 
 
+def test_a_message_that_merely_mentions_research_is_not_a_request() -> None:
+    """Met by accident: "a question asked while research runs" spawned a background job,
+    because the word appeared in it anywhere. A request opens with the ask; further in and
+    the word is being used rather than said."""
+    assert not wants_research("what do you know about research funding")
+    assert not wants_research("a question asked while research runs")
+    assert not wants_research("tell me how much it costs to look into things")
+
+    # and the ordinary ways of asking still work
+    assert wants_research("research the history of Kyoto")
+    assert wants_research("please research the history of Kyoto")
+    assert wants_research("can you look into Japanese rail passes")
+    assert wants_research("I would like you to research rail passes")
+
+
 def test_the_subject_loses_the_instruction_that_framed_it() -> None:
     """A status line reading "looking into research the history of Kyoto" quotes the
     instruction back instead of naming the work."""
     assert research_subject("research the history of Kyoto") == "the history of Kyoto"
-    assert research_subject("please look into rail passes") == "please rail passes"
+    assert research_subject("please look into rail passes") == "rail passes"
     assert research_subject("do some research") == "do some research", (
         "a bare ask still has a subject"
     )
@@ -84,8 +99,7 @@ def test_the_person_is_answered_before_the_research_reports() -> None:
     assert said, "the person was told nothing at all"
     assert "Looking into" in said[0], f"the first thing said was {said[0]!r}"
     assert "the history of Kyoto temples" in said[0]
-    findings = next(i for i, line in enumerate(said) if "what I found" in line)
-    assert findings > 0, "the findings arrived before the acknowledgement"
+    assert len(said) > 1, "the long job reported nothing at all"
 
 
 def test_the_conversation_is_listening_again_immediately() -> None:
@@ -194,44 +208,13 @@ def test_the_conversation_is_answered_while_the_research_is_still_running() -> N
     assert any("the long answer" in line for line in said), "the research never reported"
 
 
-def test_the_findings_are_not_announced_before_there_are_any() -> None:
-    """Written up front, the heading said "Here is what I found on X." and was followed by
-    several minutes of nothing while the model thought. Measured: the acknowledgement
-    landed at 0.8s and the first word of the findings at 274s."""
-    import threading
+def test_the_long_job_does_not_title_its_own_findings() -> None:
+    """The page labels the document with the subject, so a first line naming the subject
+    said it twice -- once on the chip and again immediately underneath."""
+    session, said = _run("research the history of Kyoto temples")
 
-    from zeos_chat.llm import Ask
-
-    release = threading.Event()
-
-    def model(ask: Ask) -> str:
-        if ask.descriptor == "deep-research":
-            release.wait(timeout=120)
-            return "what it found"
-        return "an answer"
-
-    said: list[str] = []
-    session, adapter, _ = build_session(
-        load_case(CASE), model=model, on_reply=lambda p, t: said.append(t)
+    reported = [line for line in said if "Looking into" not in line]
+    assert reported, "the long job wrote nothing"
+    assert not any("what I found" in line for line in reported), (
+        f"the job titled its own document: {reported[0]!r}"
     )
-    session.boot()
-    session.deliver(MESSAGES, "research the history of Kyoto")
-    session.deliver(ARRIVALS, "message")
-    for _ in range(400):
-        session.step()
-        if adapter.in_flight:
-            break
-    for _ in range(200):
-        session.step()
-
-    assert not any("what I found" in line for line in said), (
-        f"the findings were announced before the model had written any: {said}"
-    )
-    release.set()
-    for _ in range(4000):
-        session.step()
-        if any("what it found" in line for line in said):
-            break
-    heading = next(i for i, line in enumerate(said) if "what I found" in line)
-    body = next(i for i, line in enumerate(said) if "what it found" in line)
-    assert heading < body, "the heading must still come before the findings it introduces"
