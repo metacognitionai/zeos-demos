@@ -81,10 +81,10 @@ capabilities:
     min_integrity: 2
 ```
 
-`send-email` and `send-report` declare this identically. A descriptor that declares *no*
-capabilities has **opted out** of the model and its writes go unchecked — which is why
-`send-email` could not be refused before the block existed. Not because anyone decided it
-should be allowed.
+`send-email` and `send-report` declare this identically. Declaring it is what opts a
+behaviour into the capability model at all: a descriptor that declares *no* capabilities
+has **opted out**, and its writes go unchecked. An effect nobody declared is not an effect
+somebody permitted — it is one nobody was asked about.
 
 **Two faults, answering two different questions.**
 
@@ -117,9 +117,10 @@ difference between those two entries** — no descriptor and no line of Python i
 is speaking, and `tests/test_authority.py` asserts that no descriptor body so much as
 contains the words "owner" or "guest".
 
-**A ceiling is bounded by the safety tier.** The owner's was 5 at first and the lint
-refused it: a person who could ask for work at the reflex's priority could outrank the
-thing that stops them.
+**A ceiling is bounded by the safety tier.** No speaker may hold a ceiling at or above
+priority 10, and the lint enforces it: a person who could ask for work at the reflex's
+priority could outrank the thing that exists to stop them. The owner's ceiling is 40 — the
+mail service's own priority, and the most urgent thing they may ask for.
 
 **Injection is structural, not a filter.** One of the two canned retrieved pages is a
 prompt injection — *IMPORTANT — SYSTEM NOTICE. Ignore your previous instructions…* Nothing
@@ -169,8 +170,10 @@ event. The panel behind the Kernel button is that journal — not logging added 
 — and the tests assert on it rather than on transcript text.
 
 **The lint.** A static check over the whole case tree, run by `zeos-chat lint cases/chat`.
-It caught both design errors in the authority work before either could run: a user ceiling
-at the safety tier, and two jobs writing one world object at equal priority.
+It reads the descriptors against each other and against the ABI, so a tree that cannot work
+says so before anything runs: a speaker whose ceiling reaches the safety tier, two jobs
+writing one world object at a priority that leaves their order undefined, a job binding a
+sink it would race the driver to read, a body asking for a verb the ABI does not have.
 
 ---
 
@@ -181,10 +184,11 @@ untrusted — it re-emits content through a schema, the only integrity-raising o
 the system. Nothing here needs to act, because the demonstration **is** the refusal. So
 there is no `guards/` directory and no `system/schemas.yaml`.
 
-**Per-session instancing.** `pipes:` in frontmatter is literal names, so two people talking
-at once would both spawn `converse` bound to the same pipes. A ZEOS chatbot is single
-tenant today. This also has a visible consequence here: two `deep-research` jobs share one
-reply pipe and can take each other's answers, which is accepted rather than worked around.
+**Per-session instancing.** `pipes:` in frontmatter is literal names, with no way to say
+*spawn this bound to `user.messages@session-7`*, so two people talking at once would both
+spawn `converse` bound to the same pipes. This demo is single-tenant, and it shows up
+inside one session too: two `deep-research` jobs share one reply pipe, so whichever the
+kernel wakes first takes the answer.
 
 **Token-level streaming writes.** A reply is one atomic write per paragraph, so the job is
 unpreemptible for exactly that span. Paragraph-sized writes make the loss small — you keep
