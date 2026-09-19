@@ -10,7 +10,7 @@ vendored.
 
 ## Prose
 
-**British English**, in documentation and in comments.
+**Australian English**, in documentation and in comments.
 
 **Document what exists.** Not what is planned, not what was removed, and not how the work
 came to be the way it is. A reader arrives wanting the system as it stands; the history is
@@ -43,7 +43,8 @@ it does.
 
 **Comments say why, not what.** The interesting comment is the one recording a constraint
 that is not visible from the code — an ordering that matters, a threading rule, a thing
-that was tried and does not work.
+that was tried and does not work. Don't document development history, that belongs in the
+git commit messages.
 
 **All I/O at the edge.** The kernel is not re-entrant: one thread owns it, and anything
 arriving from elsewhere is queued and drained between ticks.
