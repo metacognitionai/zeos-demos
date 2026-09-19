@@ -6,7 +6,7 @@
 # should not have to reconstruct it.
 #
 # That this is a list of one is the single-tenancy limit, visible in the configuration.
-# `pipes:` in frontmatter is literal names and `Kernel.spawn` takes no binding overrides
-# (C3), so a second conversation would be a second job bound to the same `user.messages`.
-# Until per-session instancing exists, one conversation is what this case can hold.
+# `pipes:` in frontmatter is literal names and `Kernel.spawn` takes no binding overrides,
+# so a second conversation would be a second job bound to the same `user.messages`. Until
+# per-instance binding exists, one conversation is what this case can hold.
 - converse

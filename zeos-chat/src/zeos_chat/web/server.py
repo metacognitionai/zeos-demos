@@ -374,11 +374,12 @@ class ChatServer:
         and offer whatever they managed to write.
 
         The kernel cannot be asked to do this, and that is the whole reason it is here.
-        Two jobs of one descriptor share a reply pipe, so the sentinel meant to wake them
-        is taken whole by whichever reads first and the other stays blocked for ever --
-        `zeos-internal#107`, with per-instance binding being C3. Measured: stop two
-        research jobs and one exits, one does not, and its line sat in the strip claiming
-        to be working long after it had been given up on.
+        Two jobs of one descriptor share a reply pipe -- pipe names in frontmatter are
+        literal, so a second job of the same descriptor binds the same ones -- and a
+        blocking read takes everything waiting. The sentinel meant to wake both is
+        therefore taken whole by whichever reads first, and the other stays blocked for
+        ever. Measured: stop two research jobs and one exits, one does not, and its line
+        sat in the strip claiming to be working long after it had been given up on.
 
         So the driver retires what it abandoned. The job is still parked in the kernel and
         this does not pretend otherwise; what it fixes is the page reporting work that will

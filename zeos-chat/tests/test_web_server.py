@@ -156,7 +156,7 @@ def test_the_page_is_served(chat: tuple[ChatServer, str]) -> None:
 def test_saying_something_delivers_the_words_and_rings_the_doorbell(
     chat: tuple[ChatServer, str],
 ) -> None:
-    """The correction the design note carries: the content and the event are separate
+    """The correction `pipes.yaml` explains: the content and the event are separate
     lines, and only one of them carries the message."""
     server, base = chat
     assert post(base, "/say", {"text": "hello there"}) == 200
@@ -906,8 +906,8 @@ def test_stopping_clears_every_background_job_from_the_strip() -> None:
     Measured before the fix -- the second job's line sat in the strip claiming to be
     working long after it had been given up on.
 
-    The kernel cannot be asked to reach that job (zeos-internal#107; per-instance binding
-    is C3). What the driver can do is stop reporting work it has abandoned.
+    Nothing in the kernel can reach a job that is blocked rather than suspended, so it
+    cannot be cancelled. What the driver can do is stop reporting work it has abandoned.
     """
 
     def model(ask) -> Iterator[str]:  # type: ignore[no-untyped-def]

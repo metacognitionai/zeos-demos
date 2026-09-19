@@ -1,10 +1,10 @@
 # The conversation's wiring.
 #
 # Ring and principal are assigned here, by the kernel, from provenance -- never claimed
-# by the content that arrives (MP §4). Everything on this list is ring 2 at stage 1:
-# nothing in this case has yet touched the outside world. `web.results` at ring
-# EXTERNAL, and the endorsers that make a job able to act after reading it, arrive with
-# stage 3.
+# by the content that arrives. Everything on this list is ring 2: nothing in this case
+# retrieves from the outside world. Untrusted material would come in at ring EXTERNAL,
+# and a job that had read it would need an endorser before it could act -- neither is
+# exercised here.
 #
 # There are three kinds of pipe and this case uses all three. An ordinary pipe carries a
 # *message*: appended, read once, gone. An actuator -- declared by `world_object:` --
@@ -14,9 +14,9 @@
 
 # -- the person ---------------------------------------------------------------
 #
-# **Two pipes carry one message, and this is a correction to the design note rather
-# than a convenience.** ZEOS-Chat §2.1 binds `converse.stdin` to `user.messages` and
-# §2.2 fires the `user-spoke` vector from that same pipe. Those two cannot both hold:
+# **Two pipes carry one message, and it is a correction rather than a convenience.**
+# The obvious arrangement binds `converse.stdin` to `user.messages` and fires the
+# `user-spoke` vector from that same pipe. Those two cannot both hold:
 # `Kernel._dispatch_handler` calls `take_write()` on the vector's source, so the firing
 # *takes* the message and hands it to the handler as its payload. The conversation is
 # woken by the same write, finds the pipe empty when it retries its read, and parks
@@ -75,7 +75,7 @@
 
 # The way out. A sink is drained by the driver after every tick and handed to the
 # `on_drain` callback, which in the web application is the reply arriving in the browser.
-# Before sinks existed (C1) the only outbound path was an actuator, which latches and so
+# Before sink pipes existed the only outbound path was an actuator, which latches and so
 # holds a current value rather than a history -- no use at all for a conversation, where
 # every turn must survive the next one.
 - name: user.replies
@@ -88,9 +88,9 @@
 #
 # **One actuator, one world object.** An actuator write latches into exactly one object,
 # so one pipe cannot maintain two of them -- which is why there are two pipes here and
-# not one `actuators.session`. ZEOS-Chat v0.2 declared `writes: [session.topic]` on
-# `converse` with no actuator to write it through, and mapped `session.pending_task` as
-# well, which nothing in the case could set. The topic is `converse`'s to write; the
+# not one `actuators.session`. An earlier draft of this case declared
+# `writes: [session.topic]` on `converse` with no actuator to write it through, and
+# mapped `session.pending_task` as well, which nothing in the case could set. The topic is `converse`'s to write; the
 # pending task belongs to `deep-research`, through an actuator of its own.
 
 - name: actuators.topic
@@ -154,9 +154,8 @@
 # -- the model ----------------------------------------------------------------
 #
 # A job reaches the model the way it reaches any other device: it writes a request and
-# blocks on a reply. Core §4.2 says a tool call *is* a pipe write plus a blocking read and
-# that the job is descheduled and costs nothing while it waits, and this is that, with the
-# model as the tool.
+# blocks on a reply. A tool call *is* a pipe write plus a blocking read, and the job is
+# descheduled and costs nothing while it waits; this is that, with the model as the tool.
 #
 # What it buys is not a faster model but an awake kernel. A job parked on a reply is
 # `JobBlocked`: the scheduler runs whatever else is runnable, a vector still fires, a
@@ -184,9 +183,9 @@
   capacity: 8192
 
 # The long job's own pair. Note the ring: what comes back is still TRUSTED here, because
-# the model is being asked to compose, not to fetch. When stage 3 adds retrieval it is
-# `web.results` at EXTERNAL that carries the outside world in, and the demotion that
-# follows is the whole story -- a model's own words are not what makes a job dirty.
+# the model is being asked to compose, not to fetch. Retrieval would be the interesting
+# case: a pipe carrying the outside world in at EXTERNAL, and the demotion that follows
+# -- a model's own words are not what makes a job dirty.
 - name: llm.research.requests
   ring: TRUSTED
   principal: device

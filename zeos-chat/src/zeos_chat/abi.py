@@ -47,9 +47,9 @@ CHAT = SyscallABI(
             pipe=True,
             doc="sleep until something arrives on that pipe",
         ),
-        # Declared, and reachable only once zeos-internal#102 lands: until then a parsed
-        # `spawn` carries its target nowhere the kernel reads it. The tapes therefore do
-        # not spawn, and the two services load and typecheck without being reachable.
+        # How `converse` dispatches the long job. The target survives the parse, so the
+        # kernel resolves it against `children:` and refuses anything not declared there
+        # as a capability fault -- the check is the kernel's, not the parent's.
         Verb(
             "spawn",
             OpKind.SPAWN,

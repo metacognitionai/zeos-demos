@@ -11,9 +11,10 @@ budget:
   # A couple of hundred tokens. A handler that can outgrow this is not a handler.
   tokens: 256
 on_fault: retry
-# **Two of the three stack policies in ZEOS-Chat §2.2 are expressible and one is not.**
-# The design describes this handler resolving, per firing, to `return`, `cancel-below:1`
-# or `replace-with: converse`. A descriptor declares one `on_complete` statically, and
+# **A handler cannot choose its completion policy per firing.**
+# What a message ought to do to a half-written answer depends on the message: carry on,
+# drop the follow-up, or abandon the answer entirely -- `return`, `cancel-below:1` and
+# `replace-with: converse` respectively. A descriptor declares one `on_complete`, and
 # nothing in the kernel lets a handler choose at run time, so this file picks the
 # common case and `cancel.md` carries the other.
 #

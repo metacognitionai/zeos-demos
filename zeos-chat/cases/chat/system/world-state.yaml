@@ -17,5 +17,5 @@ initial:
   # actuator, read by `converse` through a status region -- which is how a conversation
   # knows about work it dispatched without holding a handle to it.
   session.pending_task: "none"
-  # The outbox. Simulated at stage 1: the value is what *would* have been sent.
+  # The outbox. What latches here is the letter; a driver adapter is what transmits it.
   mail.sent: "nothing sent"

@@ -241,10 +241,10 @@ def converse(ctx: JobContext) -> Iterator[str]:
         # the person -- which is what makes the words appear as they are written rather
         # than in one go at the end.
         #
-        # C7 is still open and this does not pretend otherwise: a single write is still
-        # atomic. What this does is make the writes small, so the granularity a person
-        # sees, and the granularity an interruption cuts at, are both a word rather than a
-        # paragraph.
+        # This does not pretend to be streaming: a single write is still atomic, and a
+        # job still cannot hand out an answer as it composes one. What it does is make the
+        # writes small, so the granularity a person sees, and the granularity an
+        # interruption cuts at, are both a word rather than a paragraph.
         while True:
             yield "read hear;"
             text, ended = stream_piece(ctx.arrival)

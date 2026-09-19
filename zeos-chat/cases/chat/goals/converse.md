@@ -1,10 +1,11 @@
 ---
 name: converse
 priority: 60
-# `malformed_request` is a routine fault class here, not an exceptional one. AM §11.3 is
-# blunt that of the three ways of keeping a model inside its ABI, only two are
-# guarantees: a sampler grammar, or a reply schema. The third -- prose plus a pattern --
-# is what an API-backed chatbot uses, and it guarantees nothing. So the conversation
+# `malformed_request` is a routine fault class here, not an exceptional one. Of the three
+# ways of keeping a model inside its syscall vocabulary, only two are guarantees: a
+# sampler grammar constrained by the ABI, or a reply schema. The third -- prose telling
+# the model the rules, plus a pattern its reply is searched with -- is what an
+# API-backed chatbot uses, and it guarantees nothing. So the conversation
 # retries rather than escalating: a reply the seat could not shape into a command is a
 # notice and another try, and a resident conversation that died of one would be a
 # chatbot that ends when the model phrases something oddly.
@@ -18,8 +19,8 @@ pipes:
   stdin: user.messages       # blocking read -- this is the "loop"
   stdout: user.replies       # a sink: drained by the driver after every tick
   tools: actuators.topic     # an actuator: one pipe, one world object
-  # The model, as a device. A request out, an answer back, and the job parked in between
-  # -- core §4.2's "a tool call *is* a pipe write plus a blocking read".
+  # The model, as a device. A request out, an answer back, and the job parked in between:
+  # a tool call *is* a pipe write plus a blocking read.
   ask:   llm.converse.requests
   hear:  llm.converse.replies
 children:                    # a job may spawn only what it lists here

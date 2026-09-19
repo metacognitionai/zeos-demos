@@ -1,9 +1,9 @@
 """The model as a device on the end of a pipe.
 
-Core §4.2 says a tool call *is* a pipe write plus a blocking read, and that the job is
-descheduled and costs nothing while it waits. This is that, with the model as the tool: a
-job writes its request to a sink, the driver drains it, a worker thread asks the model,
-and the answer comes back through ``deliver`` like any other device event.
+A tool call *is* a pipe write plus a blocking read: the job is descheduled and costs
+nothing while it waits. This is that, with the model as the tool -- a job writes its
+request to a sink, the driver drains it, a worker thread asks the model, and the answer
+comes back through ``deliver`` like any other device event.
 
 What that buys is not fewer seconds per call -- the model takes what it takes -- but a
 kernel that is *awake* for them. A job waiting on a reply is ``JobBlocked``: the scheduler
@@ -76,9 +76,9 @@ def request_pipes() -> Mapping[PipeName, Ask]:
 class StubModel:
     """A model that answers from a list. No key, no network, and deterministic.
 
-    Which makes it the replacement for the case's old ``script:`` tapes: the control flow
-    is now Python and therefore fixed, so the only thing left that could vary between two
-    runs is what the model says -- and this says the same thing twice.
+    Which is what makes a run reproducible. The control flow is Python and therefore
+    fixed, so the only thing left that could differ between two runs is what the model
+    says -- and this says the same thing twice.
     """
 
     def __init__(self, answers: Mapping[str, str] | None = None) -> None:
