@@ -17,20 +17,24 @@ You need [uv](https://docs.astral.sh/uv/) and a checkout of `zeos-internal` besi
 `zeos_demos`.
 
 ```bash
-uv sync
+uv sync --extra claude
+cp .env.example .env        # then put your Claude key in it -- see below
 uv run zeos-chat serve --open
 ```
 
-That is the whole of it. A stub model answers, so there is no API key, no weights, no
-network and nothing to configure. The page works, the kernel is real, and everything the
-panel shows actually happened.
+That is the whole of it. `serve` talks to Claude by default, so this is a chatbot that
+holds a conversation.
 
-For a chatbot that can hold a conversation, put a Claude key in `.env` (below) and:
+To see the kernel without a key, ask for the stub model instead:
 
 ```bash
-uv sync --extra claude
-uv run zeos-chat serve --model claude --open
+uv sync
+uv run zeos-chat serve --model stub --open
 ```
+
+It answers with canned text, so there is no key, no weights and no network. Everything
+else is the same: the page works, the kernel is real, and everything the panel shows
+actually happened.
 
 Two other commands, if you want them:
 
@@ -56,15 +60,18 @@ cp .env.example .env
 
 ### The Claude API key
 
-Only `--model claude` needs this. The stub, the lint and the replay need nothing.
+`serve` needs this, because it uses Claude unless told otherwise. `serve --model stub`,
+the lint and the replay need nothing.
 
 | Variable | Required | What it is |
 | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | yes, for `--model claude` | your key from the Anthropic console |
+| `ANTHROPIC_API_KEY` | yes, unless `--model stub` | your key from the Anthropic console |
 | `ANTHROPIC_MODEL` | no | defaults to `claude-opus-5` |
 
 These are the SDK's own names, so a shell already set up for Claude needs no `.env` at
-all. Without a key, `--model claude` says so and stops rather than quietly falling back.
+all. Without a key, `serve` says so and stops rather than quietly falling back to the
+stub — a chatbot answering from canned text when you expected a model is a confusing
+thing to debug.
 
 ### The email address
 
