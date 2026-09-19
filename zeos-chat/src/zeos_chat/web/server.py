@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import queue
+import re
 import threading
 import time
 from collections.abc import Sequence
@@ -29,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 from zeos.core.events import (
+    EchoedBack,
     Event,
     FaultRaised,
     IntegrityDemoted,
@@ -42,7 +44,7 @@ from zeos.core.events import (
     PipeWritten,
     VectorFired,
 )
-from zeos.core.ids import PipeName
+from zeos.core.ids import FaultKind, PipeName
 
 from zeos_chat.jobs import ProgramSource
 from zeos_chat.llm import LlmAdapter
@@ -56,14 +58,21 @@ STATIC = Path(__file__).resolve().parent / "static"
 MESSAGES = PipeName("user.messages")
 ARRIVALS = PipeName("user.arrivals")
 CANCEL = PipeName("user.cancel")
-MAIL = PipeName("mail.requests")
+CONSOLE = PipeName("owner.console")
+INTERCOM = PipeName("guest.intercom")
 TASK = PipeName("actuators.task")
 REPLIES = PipeName("user.replies")
 LETTERS = PipeName("mail.letters")
 
-#: What the mail doorbell carries. One token, like `RING`: the letter goes to
-#: `mail.letters` and this says only that somebody asked for it to be sent.
-ASKED = "send"
+#: What the page says at a door to ask for the conversation to be sent. It has to be
+#: one of the phrasings `send-email` declares; anything else is refused by the kernel
+#: with "nothing is listening", which is the front door working rather than failing.
+ASKED = "email me this conversation"
+
+#: Which door each speaker reaches. Identity is the door's, not the sentence's: there
+#: is no field in the request saying who this is, because a field like that is a field
+#: a sentence could fill in.
+DOORS = {"owner": CONSOLE, "guest": INTERCOM}
 
 #: What the doorbell carries. One token, and never the message: the words go to
 #: `user.messages` and this says only that somebody spoke. See the case's pipes.yaml.
@@ -165,6 +174,12 @@ class Report:
         return f"{self.text}\n"
 
 
+def _pipe_in(detail: str) -> str:
+    """The pipe a capability fault names, pulled out of the kernel's own wording."""
+    quoted = re.findall(r"'([^']+)'", detail)
+    return quoted[-1] if quoted else "that pipe"
+
+
 class ChatServer:
     """One conversation, one page, and the thread between them."""
 
@@ -208,6 +223,15 @@ class ChatServer:
         self._descriptor_of: dict[Any, str] = {}
         #: Reports being collected, and finished ones the page can open, by job.
         self._reports: dict[str, Report] = {}
+        #: What a door said back, waiting to be recognised when it comes out of the
+        #: reply sink. The kernel echoes its decision to the speaker through the same
+        #: pipe a reply uses, so without this the page renders "spawning send-email();
+        #: priority 40 requested, running at 60" as something the chatbot said.
+        self._echoed: list[str] = []
+        #: Who last asked for something at a door. The fault that refuses them names
+        #: the pipe but not the speaker, and "refused" on its own is a worse answer
+        #: than "the guest was refused the outbox".
+        self._asked_as = "owner"
         session._on_reply = self._on_reply  # pyright: ignore[reportPrivateUsage]
         session._on_event = self._on_event  # pyright: ignore[reportPrivateUsage]
         if mail is not None:
@@ -287,21 +311,24 @@ class ChatServer:
         # the span the person is watching for a sign of life.
         self._set_busy(True)
 
-    def email(self, subject: str, body: str) -> None:
-        """A request to mail the conversation. One delivery, and the kernel does the rest.
+    def email(self, subject: str, body: str, speaker: str = "owner") -> None:
+        """Ask, as somebody, for the conversation to be sent.
 
         Note what is *not* here: no check that mail is configured, no composing, no
-        sending. The write fires the `mail-requested` vector, the kernel dispatches
-        `send-email` at priority 40, and that job's write to the outbox is what may be
-        refused -- by authority, or because its integrity was lowered by something it
-        read. A server that decided any of that in advance would be deciding the thing
-        the capability check exists to decide.
+        sending, and no test of whether this speaker is allowed to ask. The request goes
+        through the door belonging to whoever is speaking; the kernel compiles it, spawns
+        `send-email`, and narrows that job to the speaker's authority. The write to the
+        outbox is what may then be refused. A server that decided any of that in advance
+        would be deciding the thing the capability check exists to decide.
+
+        The speaker picks a *door*, not a field in the request. A field saying who this is
+        would be a field a sentence could fill in.
         """
-        # The letter first, the doorbell second -- the order the conversation's own two
-        # lines use. A firing that arrived before the content would dispatch a job that
-        # then blocks on an empty pipe.
+        # The letter first, the request second. A job dispatched before the content is
+        # there blocks on an empty pipe.
         self.session.deliver(LETTERS, SUBJECT_SEPARATOR.join((subject, body)))
-        self.session.deliver(MAIL, ASKED)
+        self._asked_as = speaker if speaker in DOORS else "owner"
+        self.session.deliver(DOORS.get(speaker, CONSOLE), ASKED)
         self._set_busy(True)
 
     def interrupt(self) -> None:
@@ -414,6 +441,13 @@ class ChatServer:
         self._set_busy(False)
 
     def _on_reply(self, pipe: PipeName, text: str) -> None:
+        if text in self._echoed:
+            # The door answering, not the conversation. It belongs with the other
+            # structural facts rather than in the transcript, where it reads as the
+            # chatbot narrating its own dispatch.
+            self._echoed.remove(text)
+            self._publish("kernel", {"class": "door", "text": text})
+            return
         report = self._reports.get(str(self._speaking))
         if report is not None and not report.done:
             # Collected, not shown. What the long job writes is a document being built,
@@ -449,6 +483,8 @@ class ChatServer:
 
     def _on_event(self, new: Sequence[Event]) -> None:
         for event in new:
+            if isinstance(event, EchoedBack):
+                self._echoed.append(event.text)
             if isinstance(event, JobSpawned):
                 self._descriptor_of[event.job] = str(event.descriptor)
             if isinstance(event, PipeWritten) and event.pipe == REPLIES and event.job is not None:
@@ -476,6 +512,21 @@ class ChatServer:
                             subject=task.removeprefix("looking into ").strip() or task,
                         ),
                     )
+            elif isinstance(event, FaultRaised) and event.fault is FaultKind.CAPABILITY:
+                # The barrier, in the transcript. The journal panel shows the fault as a
+                # structural fact; this says what it meant to the person who asked, and
+                # names them -- two refusals in a row are two readable facts rather than
+                # the same sentence twice.
+                self._publish(
+                    "mark",
+                    {
+                        "mark": "refused",
+                        "text": (
+                            f"refused — {self._asked_as} holds no capability for "
+                            f"{_pipe_in(event.detail)}"
+                        ),
+                    },
+                )
             elif isinstance(event, JobCompleted | JobCancelled):
                 self._finish_report(event.job)
                 # A job that ended without clearing its line would otherwise be shown as
@@ -571,8 +622,9 @@ def _handler(server: ChatServer) -> type[BaseHTTPRequestHandler]:
             elif self.path == "/email":
                 subject = str(body.get("subject", "")).strip()
                 transcript = str(body.get("body", "")).strip()
+                speaker = str(body.get("speaker", "owner")).strip()
                 if transcript:
-                    server.email(subject or "Your ZEOS Chat conversation", transcript)
+                    server.email(subject or "Your ZEOS Chat conversation", transcript, speaker)
             else:
                 self._send(404, b"not found", "text/plain; charset=utf-8")
                 return

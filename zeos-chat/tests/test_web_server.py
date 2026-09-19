@@ -954,3 +954,56 @@ def test_a_job_stopped_before_it_wrote_anything_offers_no_document() -> None:
     frames = drain(stream)
     assert not [m for m in frames if m["kind"] == "report"], "an empty document was offered"
     assert tasks(frames)[-1] == [], "the strip kept a job that produced nothing"
+
+
+# -- who is asking ----------------------------------------------------------
+
+
+def _outbox_server():  # type: ignore[no-untyped-def]
+    from zeos_chat.mail import MailAdapter, MailSettings, SimulatedSender
+
+    sender = SimulatedSender()
+    mail = MailAdapter(MailSettings(recipient="you@example.com"), sender)
+    session, adapter, source = build_session(load_case(CASE), mail=mail)
+    server = serve(session, adapter, source, mail, port=0)
+    return server, f"http://127.0.0.1:{server.httpd.server_address[1]}", sender
+
+
+def test_the_same_press_sends_for_the_owner_and_is_refused_for_a_guest() -> None:
+    """The barrier, over HTTP. The request is identical but for which door it goes
+    through, and the server does not test the speaker against anything -- it cannot, it
+    only has two pipe names."""
+    for speaker, expect_sent, expect_marks in (("owner", 1, []), ("guest", 0, ["refused"])):
+        server, base, sender = _outbox_server()
+        seen = watch(server)
+        try:
+            post(base, "/email", {"subject": "Kyoto", "body": "you: hello", "speaker": speaker})
+            assert until(lambda: bool(sender.sent) or marks(seen) == ["refused"], timeout=8), (
+                f"{speaker}: nothing happened at all"
+            )
+            time.sleep(0.3)
+            assert len(sender.sent) == expect_sent, f"{speaker}: sent {len(sender.sent)}"
+            assert marks(seen) == expect_marks, f"{speaker}: marks {marks(seen)}"
+        finally:
+            server.stop()
+            server.httpd.shutdown()
+
+
+def test_the_door_answers_into_the_journal_rather_than_the_conversation() -> None:
+    """The kernel echoes what it did with an utterance through the same sink a reply uses.
+    Left alone, the page shows "spawning send-email(); priority 40 requested, running at
+    60" as something the chatbot said."""
+    server, base, _ = _outbox_server()
+    seen = watch(server)
+    try:
+        post(base, "/email", {"subject": "Kyoto", "body": "you: hello", "speaker": "owner"})
+        assert until(lambda: any(m["kind"] == "mail" for m in seen), timeout=8)
+
+        spoken = " ".join(str(m["text"]) for m in seen if m["kind"] == "reply")
+        assert "spawning" not in spoken, f"the door's answer reached the transcript: {spoken}"
+        assert any(m["kind"] == "kernel" and m.get("class") == "door" for m in seen), (
+            "the door's answer went nowhere at all"
+        )
+    finally:
+        server.stop()
+        server.httpd.shutdown()

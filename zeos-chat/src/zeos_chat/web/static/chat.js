@@ -14,6 +14,7 @@ const panel = document.getElementById("panel");
 const toggle = document.getElementById("panel-toggle");
 const emailButton = document.getElementById("email");
 const task = document.getElementById("task");
+const speaker = document.getElementById("speaker");
 
 let lastWasMine = null;
 // The reply being written, if one is. An answer arrives as a stream of small writes, so
@@ -79,14 +80,15 @@ function endTurn() {
 const MARKS = {
   "barge-in": "interrupted — you spoke while the answer was still arriving",
   stopped: "stopped — the rest was not sent",
+  refused: "refused — the job reached the write and did not hold the capability for it",
 };
 
-function mark(which) {
+function mark(which, text) {
   empty.hidden = true;
   endTurn();
   const li = document.createElement("li");
   li.className = `mark ${which}`;
-  li.textContent = MARKS[which] || which;
+  li.textContent = text || MARKS[which] || which;
   messages.appendChild(li);
   // A mark ends any grouping: what comes next is a new turn, not a continuation.
   lastWasMine = null;
@@ -246,7 +248,7 @@ function journal(kind, text) {
 const stream = new EventSource("/events");
 stream.onmessage = (e) => {
   const msg = JSON.parse(e.data);
-  if (msg.kind === "mark") mark(msg.mark);
+  if (msg.kind === "mark") mark(msg.mark, msg.text);
   else if (msg.kind === "said") { endTurn(); bubble(msg.text, true); }
   else if (msg.kind === "reply") say(msg.text, msg.job);
   else if (msg.kind === "kernel") journal(msg.class, msg.text);
@@ -308,6 +310,7 @@ emailButton.addEventListener("click", async () => {
   await post("/email", {
     subject: first ? first.textContent.slice(0, 60) : "Your ZEOS Chat conversation",
     body,
+    speaker: speaker.value,
   });
 });
 

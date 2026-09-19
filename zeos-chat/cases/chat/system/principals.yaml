@@ -1,0 +1,41 @@
+# Who may ask for what, and how much of it they get.
+#
+# A principal is an identity plus the authority that comes with it: a priority ceiling, a
+# set of pipes it may cause writes to, a ring, and an integrity. When somebody speaks into
+# a front door, the kernel compiles the sentence into a job and then *narrows* that job to
+# the speaker's envelope. The descriptor does not change. What changes is what the job it
+# produces is allowed to do.
+#
+# The whole authority story in this case lives in the difference between these two
+# entries, and in nothing else. Neither the descriptors nor any Python inspects who is
+# speaking, and the demonstration is that they do not have to.
+
+# The person whose machine this is. Holds the one capability that matters here: the
+# outbox. Lower integrity is *more* trusted, so 2 clears the `min_integrity: 2` that
+# `send-email` declares on that pipe.
+- id: owner
+  label: the person whose machine this is
+  ring: TRUSTED
+  integrity: 2
+  # The most urgent thing they may ask for: the mail service, at 40. Not the safety tier
+  # -- the lint refuses a user principal at or above priority 10, and it is right to. The
+  # stop reflex exists to interrupt people, so a person who could ask for work at its
+  # priority could outrank the thing that stops them.
+  ceiling: 40
+  capabilities:
+    - mail.outbox
+
+# Somebody else at the keyboard. Same words available to them, same descriptors, same
+# phrasing table -- and no outbox.
+#
+# Note what is *not* written here: no rule about email, no list of forbidden phrases, no
+# check anywhere that reads the sentence and decides. The guest simply does not hold the
+# capability, so the job their words produce reaches the write and is refused there.
+- id: guest
+  label: somebody else at the keyboard
+  ring: EXTERNAL
+  integrity: 3
+  # Below the conversation, so a guest cannot ask for anything that outranks the person
+  # sitting in front of the machine.
+  ceiling: 60
+  capabilities: []

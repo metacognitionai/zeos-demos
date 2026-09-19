@@ -26,19 +26,28 @@ from zeos_chat.mail import (
 )
 
 CASE = Path(__file__).resolve().parents[1] / "cases" / "chat"
-REQUESTS = PipeName("mail.requests")
+CONSOLE = PipeName("owner.console")
 LETTERS = PipeName("mail.letters")
 OUTBOX = PipeName("mail.outbox")
 
 
-def _ask(session: object, subject: str, body: str) -> None:
-    """The letter, then the doorbell -- the order the conversation's own two lines use.
+#: One of the phrasings `send-email` declares. Anything else is refused by the kernel with
+#: "nothing is listening", which is the door working rather than failing.
+ASKED = "email me this conversation"
 
-    A firing that arrived before the content would dispatch a job that then blocks on an
-    empty pipe, which is exactly what the first version of this did.
+
+def _ask(session: object, subject: str, body: str) -> None:
+    """The letter, then the request, spoken at the owner's door.
+
+    The letter goes first: a job dispatched before the content is there blocks on an empty
+    pipe, which is exactly what the first version of this did.
+
+    Through a *door* rather than a vector, because a vector dispatches a job the kernel
+    owns and a kernel-owned job carries the kernel's authority. That would be a route
+    around the capability on the outbox -- see `test_authority.py`.
     """
     session.deliver(LETTERS, f"{subject}{SUBJECT_SEPARATOR}{body}")  # type: ignore[attr-defined]
-    session.deliver(REQUESTS, "send")  # type: ignore[attr-defined]
+    session.deliver(CONSOLE, ASKED)  # type: ignore[attr-defined]
 
 
 def _outbox(adapter: MailAdapter | None = None) -> tuple[object, MailAdapter, SimulatedSender]:
@@ -87,8 +96,8 @@ def test_the_letter_comes_from_a_latched_actuator_write() -> None:
 
 
 def test_nothing_is_sent_when_nobody_asked() -> None:
-    """The control. An idle conversation must not produce mail, and the point of saying
-    so is that the vector is the only thing that dispatches the service."""
+    """The control. An idle conversation must not produce mail: only a request at a door
+    dispatches the service."""
     session, _, sender = _outbox()
     session.deliver(PipeName("user.messages"), "hello")
     session.deliver(PipeName("user.arrivals"), "message")
@@ -99,8 +108,8 @@ def test_nothing_is_sent_when_nobody_asked() -> None:
 
 
 def test_two_requests_are_two_letters() -> None:
-    """`policy: queue` on the vector, and a consequential effect is the last place to
-    coalesce: a second request to send is not a restatement of the first."""
+    """A consequential effect is the last place to coalesce: a second request to send is
+    not a restatement of the first."""
     session, _, sender = _outbox()
     _ask(session, "first", "one")
     for _ in range(40):
@@ -157,7 +166,7 @@ def test_a_failing_send_is_reported_rather_than_raised() -> None:
     def broken(letter: Letter) -> str:
         raise OSError("no route to host")
 
-    mail = MailAdapter(MailSettings(recipient="a@b.c"), broken)
+    mail = MailAdapter(MailSettings(recipient="a@b.c"), broken, inline=True)
     outcome = mail.actuated(f"s{SUBJECT_SEPARATOR}b")
 
     assert "could not be sent" in outcome
@@ -252,7 +261,7 @@ def test_a_rejected_login_reaches_the_person_rather_than_the_logs(monkeypatch) -
         password="wrong",  # noqa: S106 - a fixture, not a credential
         live=True,
     )
-    adapter = MailAdapter(config, mail_module.SmtpSender(config))
+    adapter = MailAdapter(config, mail_module.SmtpSender(config), inline=True)
     outcome = adapter.actuated(f"s{SUBJECT_SEPARATOR}b")
 
     assert "could not be sent" in outcome
@@ -394,3 +403,44 @@ def test_a_failing_opener_becomes_the_unavailable_error(monkeypatch) -> None:  #
         assert "no handler for mailto" in str(exc), "the desktop's own reason was dropped"
     else:
         raise AssertionError("a refusing opener was not reported")
+
+
+def test_transmitting_does_not_stall_the_kernel() -> None:
+    """The one that made a press of the button look like it had done nothing.
+
+    Transmitting is I/O: opening a draft launches a desktop application, and an SMTP
+    connection waits up to thirty seconds on a server that may not answer. Done on the
+    thread that steps the kernel, a four-second send produced a four-second *tick* -- no
+    reply arrived, no mark was drawn, the logo stopped, and the page looked dead.
+    """
+    import time
+
+    def slow(letter: Letter) -> str:
+        time.sleep(2.0)
+        return "eventually"
+
+    mail = MailAdapter(MailSettings(recipient="a@b.c"), slow)
+    session, _, _ = build_session(load_case(CASE), mail=mail)
+    session.boot()
+    session.deliver(LETTERS, f"s{SUBJECT_SEPARATOR}b")
+    session.deliver(CONSOLE, ASKED)
+
+    worst = 0.0
+    for _ in range(80):
+        started = time.monotonic()
+        session.step()
+        worst = max(worst, time.monotonic() - started)
+
+    assert worst < 0.5, f"a slow send froze the kernel for {worst:.2f}s"
+    assert until_sent(mail), "the letter never went at all"
+
+
+def until_sent(mail: MailAdapter, timeout: float = 5.0) -> bool:
+    import time
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if mail.log:
+            return True
+        time.sleep(0.02)
+    return False

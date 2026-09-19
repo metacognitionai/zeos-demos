@@ -84,6 +84,39 @@
   sink: true
   capacity: 8192
 
+# -- the front doors ----------------------------------------------------------
+#
+# A pipe with an `utterance_source` is a door somebody speaks through. Text written to it
+# is not data for a job to read: the kernel compiles it against the phrasing table the
+# descriptors declare, dispatches the job that matches, and narrows that job to the
+# speaker's envelope. Nothing lands on the pipe, and no job can read what was said.
+#
+# **Identity is the door's, not the sentence's.** That is the whole point of having two.
+# A speaker cannot claim to be the owner, because nothing they write is consulted about
+# who they are -- the pipe they reached decides it before a word is compiled. The same
+# sentence through these two doors produces the same job with different authority.
+#
+# `reply_to` is required and the lint rejects a door without one: a door somebody can
+# speak into but which cannot answer is a dead end.
+
+- name: owner.console
+  ring: TRUSTED
+  principal: user
+  device: true
+  utterance_source: owner
+  reply_to: user.replies
+  capacity: 4096
+
+# Ring EXTERNAL because that is what it is: an input from outside, and content arriving
+# here carries that ring wherever it goes.
+- name: guest.intercom
+  ring: EXTERNAL
+  principal: user
+  device: true
+  utterance_source: guest
+  reply_to: user.replies
+  capacity: 4096
+
 # -- the actuators ------------------------------------------------------------
 #
 # **One actuator, one world object.** An actuator write latches into exactly one object,
@@ -105,29 +138,14 @@
   world_object: session.pending_task
   capacity: 256
 
-# The doorbell for the mail service, and the reason `send-email` is reachable at all.
+# What to send, and how the service is asked for.
 #
-# `converse` declares it as a child and the ABI declares a `spawn` verb, but a parsed
-# `spawn` does not carry its target to the kernel's spawn path, so nothing can dispatch a
-# service that way yet. A *vector* can: a handler is named in the vector table and
-# dispatched by the kernel, which is how `new-message` and `cancel` already run. So the
-# request arrives here and `mail-requested` fires the service.
+# The letter goes here and the *request* goes through a front door, which is the only
+# route to this service: a vector used to dispatch it as well, and a vector dispatches a
+# job the kernel owns -- carrying the kernel's authority, which is all of it. That made
+# the capability on `mail.outbox` unreachable, so the one consequential effect in the
+# system had a way around the one check that guards it.
 #
-# Two pipes again, for the same reason as `user.messages` and `user.arrivals` above, and
-# it is worth saying why the obvious shortcut does not work. A vector firing *does* carry
-# the written text to its handler as a payload -- but the payload is injected at job start,
-# and a seat reports an injection as an arrival only once the job has spoken. Before that
-# it is still the prompt. A model in the seat reads it either way; a Python program
-# watching its arrivals never sees it, and `send-email` wrote "nothing was asked for".
-#
-# So the content goes on a pipe the job *reads*, and the doorbell only says that somebody
-# asked. Same shape, same reason: one line carries the fact, the other the words.
-- name: mail.requests
-  ring: TRUSTED
-  principal: user
-  device: true
-  capacity: 64
-
 # What to send. Read by `send-email`, and roomy because it holds a subject and a whole
 # transcript.
 - name: mail.letters

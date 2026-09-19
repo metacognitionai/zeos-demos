@@ -46,16 +46,3 @@
   policy: queue
   deadline: 100ms
 
-- vector: mail-requested
-  source: mail.requests
-  handler: send-email
-  # Above the long job and below the conversation, matching the descriptor's own priority:
-  # sending mail is not urgent, but it should not queue behind research that may run for
-  # minutes. Below `new-message`, because a person who types while mail is going out is
-  # still the more urgent of the two.
-  priority: 40
-  # `queue`, for the same reason the user's messages queue: two requests to send are two
-  # letters, and coalescing them would silently drop one. A consequential effect is the
-  # last place to be clever about deduplication.
-  policy: queue
-  deadline: 2s

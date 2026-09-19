@@ -8,6 +8,28 @@ priority: 40
 # refused for a reason, and trying it again is how one refusal becomes a queue of
 # attempts. A fault here ends the job and the conversation is told.
 on_fault: abort
+# What this job needs authority for, and the condition attached.
+#
+# Declaring this is what opts the behaviour into the capability model at all: a descriptor
+# that declares nothing is taken to have opted out, and its writes are unchecked. That is
+# why this job could not be refused before the line existed -- not because anybody decided
+# it should be allowed.
+#
+# `min_integrity: 2` is the interesting half. Lower is more trusted. The owner sits at 2
+# and clears it; a guest sits at 3 and does not -- and a job that has *read* something
+# untrusted is demoted to match it, so a conversation that went out and read the web
+# stops clearing this bar even when the person asking is the owner.
+capabilities:
+  - pipe: mail.outbox
+    min_integrity: 2
+# How this job is reachable by language. The phrases are matched by the kernel against
+# what somebody says at a front door; they are not read by this job and not inspected by
+# any code here.
+utterances:
+  - email me this conversation
+  - email this conversation
+  - send this conversation by email
+  - send me this conversation
 writes:
   - mail.sent
 pipes:

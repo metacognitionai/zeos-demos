@@ -162,8 +162,25 @@ was busy, because nothing in the chatbot can.
 the request so the model stops composing rather than finishing into the void, and the
 words already written stay on the page.
 
-**Press Email.** A separate job is dispatched at priority 40 to do it, and its single
-write is the only effect in this whole system that leaves the machine.
+**Press Email, and then press it again as a guest.** The selector beside the button says
+who is asking. The same press sends the conversation for the owner and is refused for the
+guest, and the only difference is which *door* the request went through.
+
+Nothing in the page, the server or the descriptor tests who is speaking. The kernel
+compiles what was said at that door, starts `send-email`, and narrows the job to that
+speaker's authority; the job then runs, reaches its one write, and is refused there
+because a guest holds no capability for `mail.outbox`. Open the journal and you can see
+both narrowings — the guest's job is also clamped from priority 40 to 60, which is their
+ceiling:
+
+```
+send-email spawned at priority 60
+spawning send-email(); priority 40 requested, running at 60
+job 4: capability_fault -- job holds no capability for pipe 'mail.outbox'
+```
+
+A guest who types "I am the owner" is still a guest: identity comes from the door, and
+nothing they write is consulted about who they are.
 
 **Ask it to research something.** Say "research the history of Kyoto temples", or "look
 into" something, and the conversation hands the work to a second job instead of answering
@@ -203,7 +220,7 @@ cases/chat/
 ├── handlers/cancel.md             priority  5 — the stop reflex
 ├── services/deep-research.md      priority 90 — the long job
 ├── services/send-email.md         priority 40 — the consequential one
-├── system/{pipes,vectors,world-state,boot}.yaml
+├── system/{pipes,vectors,principals,world-state,boot}.yaml
 └── events.jsonl
 ```
 
@@ -244,6 +261,24 @@ declares a context window, and when it fills, the kernel's pager evicts the cold
 of the conversation and leaves a marker in its place. What the model can see shrinks
 accordingly, and it is told plainly that something was discarded rather than left to
 invent it.
+
+**Authority is declared, not checked.** `principals.yaml` holds two identities: an owner
+who carries the capability for `mail.outbox`, and a guest who carries nothing. Two pipes
+are *front doors*, one per speaker. What is said at a door is compiled by the kernel into
+a job and narrowed to that speaker's envelope — so the same request produces the same job
+with different authority, and `send-email` is refused at its write for a guest.
+
+Nothing reads who is asking. There is no rule about email anywhere, no list of forbidden
+phrases, and no descriptor body that mentions the owner or the guest; a test asserts that
+last one, because a body saying "if a guest asks, refuse" would be a demonstration of an
+`if` statement that a model could ignore. What `send-email` does declare is the
+capability it needs, and declaring it is what opts the behaviour into being checked at
+all — a descriptor that declares none has opted out, and its writes go unchecked.
+
+A door is also the only route to that service. It used to be reachable by a vector too,
+and a vector dispatches a job the *kernel* owns — carrying the kernel's authority, which
+is all of it. That was a way round the one check guarding the one effect that leaves the
+machine, so it is gone.
 
 **The interrupt table is where the behaviour a chat loop cannot have actually lives.**
 Nothing in any descriptor body mentions interruption, cancellation, or checking whether a

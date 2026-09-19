@@ -36,11 +36,13 @@
       into&rdquo;, and it <strong>spawns</strong> a second job to do that at low
       <strong>priority</strong>, answers you at once, and keeps talking while the job
       grinds away underneath; the bar below lists whatever jobs are running, and what one
-      finds comes back as a <strong>document</strong> you open rather than as talk. Press Email and a
-      <strong>vector</strong> dispatches a separate job whose single
-      <strong>actuator</strong> write is the only effect that leaves the machine, and so
-      the only one the kernel can <strong>refuse</strong>, on authority or on
-      <strong>integrity</strong> if that job has read something untrusted. On the right is
+      finds comes back as a <strong>document</strong> you open rather than as talk. Press Email and the
+      request goes through a <strong>front door</strong> belonging to whoever the selector
+      says is asking. The kernel compiles it, starts a separate job, and narrows that job
+      to that speaker's <strong>authority</strong> so the owner's mail goes and a guest's
+      is <strong>refused</strong> at the write, which is the only effect in this system
+      that leaves the machine. Same words, same descriptor: identity is the door's, not
+      the sentence's, and nothing here reads who is asking. On the right is
       the kernel's <strong>journal</strong>: what it did, not what was said.</p>
       <br/>
      <p class="sub">Note that ZEOS is intended as an operating system for talking to robots
@@ -84,6 +86,18 @@
     dispatches `send-email` at priority 40, and that job's write to `mail.outbox` is the
     one consequential effect in the system -- the one that can be refused.
   -->
+  <!--
+    Who is asking. Not a field in the request -- a choice of which *door* the request goes
+    through, because a field saying who you are is a field a sentence could fill in. The
+    owner holds the outbox capability and the guest does not, and nothing else differs.
+  -->
+  <label class="speaker" title="Who is asking. The owner holds the outbox capability; a guest does not.">
+    <span class="speaker-label">as</span>
+    <select id="speaker">
+      <option value="owner">owner</option>
+      <option value="guest">guest</option>
+    </select>
+  </label>
   <button id="email" type="button" class="mail" disabled title="Writes mail.outbox">Email</button>
   <button id="stop" type="button" class="stop" hidden title="Fires the cancel reflex at priority 5">Stop</button>
   <button id="send" type="submit" class="send">Send</button>

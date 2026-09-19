@@ -282,6 +282,35 @@ li.grouped { margin-top: -8px; }
 #kernel li.fault, #kernel li.demote { color: var(--accent); }
 #kernel li.spawn, #kernel li.resume { color: var(--ink); }
 
+/* Who is asking. Beside the button whose authority it decides, because those two things
+   are one control: the same press does different things depending on this. */
+.speaker {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--soft);
+  flex: none;
+  /* Stretched to the composer row rather than sized by its own padding: a select does not
+     take a line-height the way a button does, so matching the padding still left it five
+     pixels short of Send. Filling the row is the thing actually wanted. */
+  align-self: stretch;
+}
+.speaker-label { display: flex; align-items: center; }
+.speaker select {
+  font: inherit;
+  color: inherit;
+  height: 100%;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+/* A refusal is the accent colour, like the other consequential marks, and it wraps --
+   it says what happened rather than labelling it. */
+#messages li.mark.refused { white-space: normal; text-transform: none; letter-spacing: 0; }
+
 /* -- the composer -------------------------------------------------------- */
 
 .composer {

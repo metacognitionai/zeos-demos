@@ -26,6 +26,7 @@ import smtplib
 import ssl
 import subprocess
 import sys
+import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.message import EmailMessage
@@ -325,9 +326,23 @@ class MailAdapter:
         sender: object | None = None,
         *,
         on_result: object | None = None,
+        inline: bool | None = None,
     ) -> None:
         self.config = config if config is not None else settings()
         self._send = sender if sender is not None else self._default_sender()
+        #: Transmit on the calling thread instead of a worker.
+        #:
+        #: The calling thread is the one that steps the kernel, and transmitting is I/O:
+        #: `open_uri` launches a desktop application, and an SMTP connection waits up to
+        #: thirty seconds on a server that may not answer. Measured before this existed, a
+        #: four-second send produced a four-second *tick* -- the kernel stopped dead, so
+        #: no reply arrived, no mark was drawn and the logo stopped. From the page it
+        #: looked exactly like pressing the button had done nothing.
+        #:
+        #: Inline only when the sender does no I/O, which keeps a run reproducible by
+        #: construction rather than by thread scheduling -- the same rule the model
+        #: adapter follows for its stub.
+        self._inline = isinstance(self._send, SimulatedSender) if inline is None else inline
         #: Told what became of each letter. Set by whoever is showing it to a person,
         #: after construction: the adapter has to exist before the server that reports
         #: its results, so tying the knot at construction made every caller but one
@@ -360,8 +375,19 @@ class MailAdapter:
         return self.mode != "live"
 
     def actuated(self, written: str) -> str:
-        """One latched write. Returns what happened, in words for a person."""
+        """One latched write. Transmits it, and says what happened where it can.
+
+        Returns the outcome when transmitting in line, and "" when a worker is doing it --
+        by then there is nothing to return, and the answer reaches the person through
+        ``on_result`` instead.
+        """
         letter = letter_from(written, self.config)
+        if self._inline:
+            return self._transmit(letter)
+        threading.Thread(target=self._transmit, args=(letter,), name="mail", daemon=True).start()
+        return ""
+
+    def _transmit(self, letter: Letter) -> str:
         try:
             outcome = self._send(letter)  # type: ignore[operator]
         except Exception as exc:  # noqa: BLE001 - a failed send must reach the person
