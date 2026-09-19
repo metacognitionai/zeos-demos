@@ -67,7 +67,8 @@ class JobContext:
     arrivals: list[str] = field(default_factory=list[str])
     #: Set by the driver when the person has said stop. Checked between writes, because
     #: a job that is *running* cannot be woken by a device -- it is not waiting on one --
-    #: and the kernel's own stack policies cannot reach it either (see PLAN-v2.md).
+    #: and the kernel's own stack policies cannot reach it either: they clear the
+    #: suspension stack, and this job was descheduled by blocking rather than preemption.
     abandoned: bool = False
     #: The job's context as the kernel currently holds it, refreshed every turn.
     #:

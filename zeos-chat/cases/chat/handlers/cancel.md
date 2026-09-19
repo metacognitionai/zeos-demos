@@ -21,8 +21,10 @@ on_fault: abort
 # So the reflex does what a reflex can do: it takes the machine, now, at whatever token
 # boundary it lands on. Abandoning the turn belongs to the conversation, which is told by
 # the driver -- through the reply pipe if it is waiting on the model, and directly if it
-# is part way through writing. Cancelling a job that is *blocked* is something no stack
-# policy can express; see PLAN-v2.md.
+# is part way through writing. Cancelling a job that is *blocked* rather than suspended is
+# something no stack policy can express, which is a gap in the kernel rather than in this
+# case: `replace-with` and `cancel-below` clear the suspension stack, and a job parked on a
+# pipe was descheduled by blocking and is not on it.
 on_complete: return
 ---
 

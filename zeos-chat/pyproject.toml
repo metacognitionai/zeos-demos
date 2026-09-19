@@ -23,10 +23,11 @@ dev = [
 ]
 
 [tool.uv.sources]
-# A path source, not a release: this demo needs kernel work that is not in a
-# published wheel yet (see PLAN.md -- C2, C4, C8 and the spawn-target gap). It
-# assumes zeos-internal is checked out beside zeos_demos, which is how the two
-# are worked on. Swap for a pinned `zeos>=0.2` once that work ships.
+# A path source, not a release: this demo needs kernel work -- front doors on a
+# pipe, job parameters, capability schemas, a spawn that carries its target --
+# that has landed upstream but is not in a published wheel yet. It assumes
+# zeos-internal is checked out beside zeos_demos, which is how the two are worked
+# on. Swap for a pinned `zeos>=0.2` once that work ships.
 zeos = { path = "../../zeos-internal", editable = true }
 
 [build-system]
