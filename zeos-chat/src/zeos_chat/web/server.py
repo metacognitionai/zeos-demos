@@ -156,8 +156,13 @@ class Report:
         return len(self.text.split())
 
     def as_file(self) -> str:
-        """The report as a plain-text file, with a heading a reader can orient by."""
-        return f"{self.subject}\n{'=' * len(self.subject)}\n\n{self.text}\n"
+        """The report as plain text.
+
+        No heading. The chip that opens it already carries the subject, immediately
+        above, so a title inside the document said the same thing twice with a rule
+        underneath it.
+        """
+        return f"{self.text}\n"
 
 
 class ChatServer:
@@ -313,6 +318,7 @@ class ChatServer:
         was_working = self._outstanding()
         self.session.deliver(CANCEL, "stop")
         dropped = self._abandon()
+        self._retire_background()
         if was_working or dropped:
             # Only when there was something to stop. A mark for a stop that interrupted
             # nothing would be the page inventing an event the kernel never had.
@@ -363,6 +369,27 @@ class ChatServer:
     #: text onto the page does not care which job is producing it.
     ABANDONABLE = ("converse", "deep-research")
 
+    def _retire_background(self) -> None:
+        """Close out the background jobs just abandoned: stop claiming they are running,
+        and offer whatever they managed to write.
+
+        The kernel cannot be asked to do this, and that is the whole reason it is here.
+        Two jobs of one descriptor share a reply pipe, so the sentinel meant to wake them
+        is taken whole by whichever reads first and the other stays blocked for ever --
+        `zeos-internal#107`, with per-instance binding being C3. Measured: stop two
+        research jobs and one exits, one does not, and its line sat in the strip claiming
+        to be working long after it had been given up on.
+
+        So the driver retires what it abandoned. The job is still parked in the kernel and
+        this does not pretend otherwise; what it fixes is the page reporting work that will
+        never produce anything.
+        """
+        with self._lock:
+            jobs = [job for job in self._tasks if self._reporting(job)]
+        for job in jobs:
+            self._finish_report(job)
+            self._note_task(job, "none")
+
     def _abandon(self, *descriptors: str) -> int:
         """Give up on answers in progress, in both places each is held.
 
@@ -400,6 +427,10 @@ class ChatServer:
         if report is None or report.done:
             return
         report.done = True
+        if not report.words:
+            # A job that was stopped before it wrote anything has produced no document,
+            # and an empty one is a chip that opens on nothing.
+            return
         self._publish(
             "report",
             {

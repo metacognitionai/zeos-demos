@@ -252,7 +252,7 @@ def _cmd_serve(args: argparse.Namespace) -> int:
     chat = serve(session, adapter, source, mail, host=args.host, port=args.port)
     url = f"http://{args.host}:{args.port}"
     print(f"{bundle.name}: {url}")
-    print("one conversation at a time -- per-session instancing is the C3 gap. ctrl-c to stop.")
+    print("ctrl-c to stop.")
     print(_mail_line(mail))
     if args.open:
         webbrowser.open(url)

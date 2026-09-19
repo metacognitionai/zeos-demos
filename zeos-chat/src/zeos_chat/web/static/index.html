@@ -22,8 +22,8 @@
     <!--
       The byline explains the demonstration.
     -->
-    <p class="sub">Demonstration of a chatbot built as a <strong>descriptor tree</strong>: a few small text
-      files, one per behaviour, which the ZEOS kernel runs as programs. <code>converse</code>
+    <p class="sub">Demonstration of a fully functional chatbot built as a <strong>descriptor tree</strong>:
+      a few small text files, one per behaviour, which the ZEOS kernel runs as programs. <code>converse</code>
       is the resident conversation <strong>blocking on read</strong>, costing nothing until
       you type. Speak while it is answering and an <strong>interrupt</strong> preempts the
       conversation at a <strong>token boundary</strong>, between one word and the next;
@@ -42,17 +42,25 @@
       the only one the kernel can <strong>refuse</strong>, on authority or on
       <strong>integrity</strong> if that job has read something untrusted. On the right is
       the kernel's <strong>journal</strong>: what it did, not what was said.</p>
+      <br/>
+     <p class="sub">Note that ZEOS is intended as an operating system for talking to robots
+      and has features way more powerful than presented here. However, a chatbot is familiar
+      and gives a sense of how ZEOS applications are designed.</p>
   </div>
   <button id="panel-toggle" class="ghost" aria-expanded="false">Kernel</button>
 </header>
 
 <!--
-  What a background job is doing, read from `session.pending_task` -- the world object
-  `deep-research` latches through its own actuator. The conversation maps the same line
-  read-only, so this is the page learning about dispatched work exactly as the
-  conversation does, rather than the server keeping a second account of it.
+  What the background jobs are doing, read from `session.pending_task` -- the world
+  object `deep-research` latches through its own actuator. The conversation maps the
+  same line read-only, so this is the page learning about dispatched work exactly as
+  the conversation does, rather than the server keeping a second account of it.
+
+  Always present, saying so when there is nothing: a strip that appears and vanishes
+  moves everything below it, and "no active research jobs" is a fact worth being able
+  to read rather than having to infer from an absence.
 -->
-<div id="task" class="task" hidden aria-live="polite"></div>
+<div id="task" class="task" aria-live="polite"></div>
 
 <main>
   <section class="conversation" aria-live="polite">

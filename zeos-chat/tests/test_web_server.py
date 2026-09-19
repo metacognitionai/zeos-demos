@@ -26,7 +26,7 @@ from zeos.descriptor.loader import load_case
 
 from zeos_chat.build import build_session
 from zeos_chat.llm import Ask
-from zeos_chat.web.server import ChatServer, page, serve
+from zeos_chat.web.server import ChatServer, Report, page, serve
 
 CASE = Path(__file__).resolve().parents[1] / "cases" / "chat-scripted"
 MESSAGES = PipeName("user.messages")
@@ -119,8 +119,8 @@ def test_the_logo_animates_only_while_a_job_holds_the_machine() -> None:
         previous = max(head.rfind("}", 0, opened), head.rfind("{", 0, opened))
         selector = head[previous + 1 : opened].strip()
         # Only the logo's own parts. Other things on the page may animate for their own
-        # reasons -- the background-job strip pulses while a job is running -- and this
-        # rule is about the mark resting when the kernel does, not about motion in general.
+        # reasons, and this rule is about the mark resting when the kernel does rather
+        # than about motion in general.
         if any(part in selector for part in (".logo", ".paddle", ".ball")):
             animated.append(selector)
     assert animated, "the logo has no animation at all"
@@ -831,7 +831,9 @@ def test_a_report_can_be_opened_as_a_text_file() -> None:
         with urllib.request.urlopen(f"{base}/report/{reports(seen)[0]['id']}", timeout=5) as r:
             body = r.read().decode("utf-8")
         assert "FINDINGS about temples" in body
-        assert "the history of Kyoto" in body.splitlines()[0], "no heading to orient by"
+        assert "=====" not in body, (
+            "the file repeated its own name: the chip above it already carries the subject"
+        )
 
         with pytest.raises(urllib.error.HTTPError, match="404"):
             urllib.request.urlopen(f"{base}/report/nonesuch", timeout=5)
@@ -896,3 +898,59 @@ def test_barging_in_does_not_bin_the_research_you_asked_for() -> None:
     finally:
         server.stop()
         server.httpd.shutdown()
+
+
+def test_stopping_clears_every_background_job_from_the_strip() -> None:
+    """Two research jobs share one reply pipe, so the sentinel meant to wake them both is
+    taken whole by whichever reads first: one exits, the other stays blocked for ever.
+    Measured before the fix -- the second job's line sat in the strip claiming to be
+    working long after it had been given up on.
+
+    The kernel cannot be asked to reach that job (zeos-internal#107; per-instance binding
+    is C3). What the driver can do is stop reporting work it has abandoned.
+    """
+
+    def model(ask) -> Iterator[str]:  # type: ignore[no-untyped-def]
+        if ask.descriptor == "deep-research":
+            for i in range(400):
+                time.sleep(0.02)
+                yield f"R{i} "
+            return
+        yield "an answer"
+
+    session, adapter, source = build_session(load_case(CASE), model=model)
+    server = serve(session, adapter, source, port=0)
+    base = f"http://127.0.0.1:{server.httpd.server_address[1]}"
+    seen = watch(server)
+    try:
+        post(base, "/say", {"text": "research the history of Kyoto"})
+        assert until(lambda: adapter.in_flight_for("deep-research") == 1, timeout=8)
+        post(base, "/say", {"text": "look into Osaka street food"})
+        assert until(lambda: len(tasks(seen)[-1]) == 2, timeout=8), f"{tasks(seen)[-1]}"
+
+        post(base, "/stop")
+        assert until(lambda: tasks(seen)[-1] == [], timeout=8), (
+            f"a job the driver gave up on is still shown as working: {tasks(seen)[-1]}"
+        )
+    finally:
+        server.stop()
+        server.httpd.shutdown()
+
+
+def test_a_job_stopped_before_it_wrote_anything_offers_no_document() -> None:
+    """An empty report is a chip that opens on nothing."""
+    from zeos.core.ids import JobId
+
+    server = ChatServer(*build_session(load_case(CASE))[:3])
+    stream = server.watch()
+    drain(stream)
+
+    server._descriptor_of[JobId(9)] = "deep-research"  # pyright: ignore[reportPrivateUsage]
+    server._note_task(JobId(9), "looking into nothing much")  # pyright: ignore[reportPrivateUsage]
+    server._reports["9"] = Report(job="9", subject="nothing much")  # pyright: ignore[reportPrivateUsage]
+    drain(stream)
+
+    server._retire_background()  # pyright: ignore[reportPrivateUsage]
+    frames = drain(stream)
+    assert not [m for m in frames if m["kind"] == "report"], "an empty document was offered"
+    assert tasks(frames)[-1] == [], "the strip kept a job that produced nothing"

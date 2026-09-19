@@ -148,13 +148,16 @@ function transcript() {
     .join("\n\n");
 }
 
-//: What the background jobs are doing, one line each. The strip is absent when the list
-//: is empty rather than saying "nothing is running", which is furniture.
+//: What the background jobs are doing, one line each, and a line saying so when there are
+//: none. No spinner on the running lines: the logo already animates for exactly as long as
+//: a job is outstanding, and two things reporting the same fact is one more than is useful.
+const NO_JOBS = "(no active research jobs)";
+
 function showTasks(list) {
   const running = (list || []).filter((t) => t && t !== "none");
-  task.hidden = running.length === 0;
   task.textContent = "";
-  for (const what of running) {
+  task.classList.toggle("idle", running.length === 0);
+  for (const what of running.length ? running : [NO_JOBS]) {
     const line = document.createElement("span");
     line.className = "job";
     line.textContent = what;
@@ -314,4 +317,5 @@ toggle.addEventListener("click", () => {
 });
 
 describeMailer();
+showTasks([]);
 input.focus();
