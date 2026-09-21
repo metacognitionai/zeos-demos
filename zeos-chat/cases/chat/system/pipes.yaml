@@ -167,7 +167,7 @@
   ring: TRUSTED
   principal: device
   world_object: mail.sent
-  capacity: 1024
+  capacity: 4096
 
 # What the long job found, for anything that wants to *act* on it.
 #

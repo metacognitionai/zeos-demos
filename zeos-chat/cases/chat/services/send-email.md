@@ -36,7 +36,7 @@ pipes:
   stdin: mail.letters
   tools: mail.outbox
 budget:
-  tokens: 512
+  tokens: 4096
 ---
 
 # Task: send one email, then stop

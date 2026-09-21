@@ -23,7 +23,7 @@ pipes:
   stdin: research.report
   tools: mail.outbox
 budget:
-  tokens: 512
+  tokens: 4096
 ---
 
 # Task: send out what the research found
