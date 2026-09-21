@@ -212,8 +212,9 @@ attempt would only ever hold for the phrasings somebody had thought of.
 
 **Ask it to research something.** Say "research the history of Kyoto temples", or "look
 into" something, and the conversation hands the work to a second job instead of answering
-it. You get an acknowledgement immediately — composed in Python, so it costs no model call
-at all — and the conversation is listening again before the research has started.
+it. A rule across the transcript notes the hand-off — drawn by the page from the journal,
+so it costs no model call and leaves nothing in the conversation's own context — and the
+conversation is listening again before the research has started.
 
 **The findings come back as a document, not as talk.** When the job finishes, a file
 appears in the transcript with the subject and its length; click it to read it. That is

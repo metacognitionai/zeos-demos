@@ -21,6 +21,7 @@ CASE = Path(__file__).resolve().parents[1] / "cases" / "chat"
 MESSAGES = PipeName("user.messages")
 ARRIVALS = PipeName("user.arrivals")
 TASK = PipeName("actuators.task")
+REPLIES = PipeName("user.replies")
 
 
 #: Ticks a run is given. Generous, because the long job now fetches before it asks: a
@@ -96,16 +97,20 @@ def test_an_ordinary_question_does_not_spawn_anything() -> None:
     assert "deep-research" not in _spawned(session)
 
 
-def test_the_person_is_answered_before_the_research_reports() -> None:
-    """The whole arrangement, as an ordering rather than a stopwatch: the acknowledgement
-    is composed in Python and needs no model, so it reaches the person first and the long
-    job's findings arrive behind it."""
-    _, said = _run("research the history of Kyoto temples")
+def test_the_hand_off_leaves_nothing_in_the_conversation() -> None:
+    """The conversation spawns the child and says nothing. An acknowledgement written
+    here would be decoded into its own window as a turn the model never composed, and the
+    model then took the hand-off for a change of subject. Only the long job speaks."""
+    session, said = _run("research the history of Kyoto temples")
 
-    assert said, "the person was told nothing at all"
-    assert "Looking into" in said[0], f"the first thing said was {said[0]!r}"
-    assert "the history of Kyoto temples" in said[0]
-    assert len(said) > 1, "the long job reported nothing at all"
+    converse = next(j for j in session.kernel.sched.jobs() if str(j.name) == "converse")
+    spoke = [
+        e
+        for e in session.events
+        if isinstance(e, PipeWritten) and e.job == converse.job_id and e.pipe == REPLIES
+    ]
+    assert spoke == [], f"the conversation wrote a turn on hand-off: {spoke}"
+    assert said, "the long job reported nothing at all"
 
 
 def test_the_conversation_is_listening_again_immediately() -> None:
@@ -219,7 +224,7 @@ def test_the_long_job_does_not_title_its_own_findings() -> None:
     said it twice -- once on the chip and again immediately underneath."""
     session, said = _run("research the history of Kyoto temples")
 
-    reported = [line for line in said if "Looking into" not in line]
+    reported = said
     assert reported, "the long job wrote nothing"
     assert not any("what I found" in line for line in reported), (
         f"the job titled its own document: {reported[0]!r}"

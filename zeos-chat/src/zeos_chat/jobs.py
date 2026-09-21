@@ -234,19 +234,15 @@ def converse(ctx: JobContext) -> Iterator[str]:
         yield f"write tools {topic};"
 
         if subject:
-            # Hand it off and go straight back to listening. The acknowledgement is
-            # composed here rather than asked of the model, which is the whole point of
-            # the arrangement: the person gets an answer immediately and the slow work
-            # happens underneath at priority 90, where anything they do outranks it.
+            # Hand it off and go straight back to listening. Nothing is said: a job's
+            # writes are decoded into its own window, so an acknowledgement written here
+            # would sit in the history as a turn the model never composed, and the model
+            # would take the hand-off for a change of subject. The page notes the
+            # dispatch from the journal instead, where it costs the conversation nothing.
             #
             # `children:` is what makes this legal. A spawn naming anything else is a
             # capability fault at the kernel, not a check in this function.
             yield "spawn deep-research;"
-            yield (
-                f"write stdout Looking into {topic} now. "
-                f"That runs underneath this conversation, so carry on -- "
-                f"I will add what it finds as it arrives.;"
-            )
             continue
 
         yield f"write ask {payload(message)};"

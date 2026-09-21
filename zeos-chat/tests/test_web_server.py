@@ -344,6 +344,12 @@ def marks(seen: list[dict[str, object]]) -> list[str]:
     return [str(m["mark"]) for m in seen if m["kind"] == "mark"]
 
 
+def interruptions(seen: list[dict[str, object]]) -> list[str]:
+    """The marks that say a turn did not finish. A research hand-off is also a mark, and a
+    test about interruption should not fail because one was asked for."""
+    return [m for m in marks(seen) if m != "research"]
+
+
 def watch(server: ChatServer) -> list[dict[str, object]]:
     seen: list[dict[str, object]] = []
     stream = server.watch()
@@ -655,7 +661,9 @@ def test_talking_during_research_is_not_marked_as_an_interruption() -> None:
         post(base, "/say", {"text": "meanwhile, name one temple"})
         assert until(lambda: any(m["kind"] == "reply" for m in seen), timeout=8)
         time.sleep(0.2)
-        assert marks(seen) == [], f"a message during background work was marked: {marks(seen)}"
+        assert interruptions(seen) == [], (
+            f"a message during background work was marked: {marks(seen)}"
+        )
     finally:
         release.set()
         server.stop()
@@ -804,7 +812,7 @@ def test_the_long_jobs_findings_do_not_enter_the_conversation() -> None:
 
         spoken = " ".join(str(m["text"]) for m in seen if m["kind"] == "reply")
         assert "FINDINGS" not in spoken, f"the findings leaked into the transcript: {spoken}"
-        assert "Looking into" in spoken, "the acknowledgement should still be a reply"
+        assert "research" in marks(seen), "the hand-off should be marked in the transcript"
 
         offered = reports(seen)[0]
         assert "the history of Kyoto" in str(offered["subject"])
@@ -867,7 +875,7 @@ def test_stop_halts_the_long_job_too() -> None:
         post(base, "/stop")
         assert until(lambda: adapter.in_flight == 0, timeout=5), "the request was left in flight"
         assert until(lambda: reports(seen), timeout=5), "the partial report was never offered"
-        assert marks(seen) == ["stopped"], f"marks: {marks(seen)}"
+        assert interruptions(seen) == ["stopped"], f"marks: {marks(seen)}"
 
         # Stopped part way, so it must be short of the two hundred it would have written.
         assert int(reports(seen)[0]["words"]) < 200, "the job ran to completion after stop"

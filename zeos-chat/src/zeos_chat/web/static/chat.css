@@ -205,6 +205,10 @@ li.grouped { margin-top: -8px; }
    wraps where the others do not -- a refusal says why, and that is a sentence. */
 #messages li.mark.mail { white-space: normal; text-transform: none; letter-spacing: 0; }
 
+/* A hand-off to the long job. The conversation itself said nothing, so this is a rule
+   and not a bubble. */
+#messages li.mark.research { white-space: normal; text-transform: none; letter-spacing: 0; }
+
 .empty { max-width: 46rem; margin: 6px auto; color: var(--soft); font-size: 13px; }
 .empty code { font-family: var(--mono); font-size: 12px; }
 

@@ -552,16 +552,25 @@ class ChatServer:
                 if self._reporting(event.job) and task and task != "none":
                     # The subject, taken where the job itself records it rather than
                     # guessed from the text it goes on to write.
-                    self._reports.setdefault(
-                        str(event.job),
+                    if str(event.job) not in self._reports:
                         # Stripped once, here, so the chip and the file agree. The job
                         # writes "looking into X" because that line is what it is *doing*;
                         # the document is about X.
-                        Report(
-                            job=str(event.job),
-                            subject=task.removeprefix("looking into ").strip() or task,
-                        ),
-                    )
+                        subject = task.removeprefix("looking into ").strip() or task
+                        self._reports[str(event.job)] = Report(job=str(event.job), subject=subject)
+                        # The hand-off, in the transcript. A mark rather than a reply: the
+                        # conversation said nothing, and a bubble would claim it had.
+                        self._publish(
+                            "mark",
+                            {
+                                "mark": "research",
+                                "text": (
+                                    f"looking into {subject} — a separate job, running "
+                                    f"underneath this conversation; the findings arrive "
+                                    f"as a document"
+                                ),
+                            },
+                        )
             elif isinstance(event, FaultRaised) and event.fault in REFUSALS:
                 # The barrier, in the transcript. The journal panel shows the fault as a
                 # structural fact; this says what it meant to the person who asked.

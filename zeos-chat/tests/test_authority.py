@@ -268,11 +268,15 @@ def test_pressing_twice_on_findings_already_handed_over_says_so() -> None:
     It is answered now, and without inventing a verdict: the page reports that there is
     nothing left to read, which it asks the pipe rather than assumes.
     """
-    _, session, sender, press = _pressing()
+    server, session, sender, press = _pressing()
     session.deliver(PipeName("user.messages"), RESEARCH)
     session.deliver(PipeName("user.arrivals"), "message")
     for _ in range(400):
         session.step()
+    # The hand-off draws a mark of its own; only what each press produces is of interest.
+    watching = server._watchers[0]  # pyright: ignore[reportPrivateUsage]
+    while not watching.empty():
+        watching.get()
 
     first = press(what="report")
     second = press(what="report")
