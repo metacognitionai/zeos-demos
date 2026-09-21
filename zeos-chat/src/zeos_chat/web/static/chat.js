@@ -142,6 +142,7 @@ function posted(to, subject, outcome) {
 //: alongside it: what the person asked to send is what they can see.
 function transcript() {
   return Array.from(messages.children)
+    .filter((li) => !li.classList.contains("report"))
     .map((li) => {
       if (li.classList.contains("mark")) return `--- ${li.textContent} ---`;
       const who = li.classList.contains("mine") ? "you" : "assistant";
