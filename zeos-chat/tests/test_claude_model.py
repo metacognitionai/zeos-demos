@@ -186,6 +186,49 @@ def test_an_evicted_stretch_is_named_rather_than_dropped() -> None:
     assert [role for role, _ in turns] == ["user", "assistant", "user"], "roles must alternate"
 
 
+def test_a_research_request_is_not_shown_to_the_model_as_a_turn() -> None:
+    """The request was handed to another job, whose findings never come back through this
+    conversation. Shown as a turn it reads as a change of subject, and the model followed
+    it: a ski conversation drifted to whatever had been sent for research."""
+    turns = turns_of(
+        "read stdin; planning a ski trip write tools planning a ski trip; "
+        "write ask planning a ski trip; read hear; take a coat zeos-chat:end "
+        "write stdout take a coat; "
+        "read stdin; research oxygen at altitude write tools oxygen at altitude; "
+        "read stdin; what about lift passes write tools what about lift passes;"
+    )
+    assert turns == [
+        ("user", "planning a ski trip"),
+        ("assistant", "take a coat"),
+        ("user", "what about lift passes"),
+    ], turns
+
+
+RESUME = (
+    "<RESUME> Waited 390ms. Changed state you depend on: session.pending_task: none -> "
+    "looking into the series better call saul Revalidate your current plan step before "
+    "continuing. </RESUME>"
+)
+TAIL = "write tools what is 5 time 6; write ask what is 5 time 6; read hear; 30. write stdout 30.;"
+
+
+def test_a_resume_notice_is_not_shown_to_the_model_as_the_persons_words() -> None:
+    """A kernel frame lands wherever the job was waiting, which after `read stdin;` is
+    inside the person's turn. Shown there, the model read a scheduler notice naming a
+    background job's subject as something the person had said, and answered about it."""
+    turns = turns_of(f"read stdin; what is 5 time 6 {RESUME} {TAIL}")
+    assert turns == [("user", "what is 5 time 6"), ("assistant", "30.")], turns
+
+
+def test_a_status_refresh_ahead_of_a_message_does_not_swallow_it() -> None:
+    """The other ordering. A `<STATUS>` landing first used to end the turn before the
+    message began, so the message was lost from the history and two answers ran together."""
+    turns = turns_of(
+        f"read stdin; <STATUS session.pending_task> looking into x </STATUS> what is 5 time 6 {TAIL}"
+    )
+    assert turns == [("user", "what is 5 time 6"), ("assistant", "30.")], turns
+
+
 def test_a_window_that_does_not_open_with_the_persona_is_left_alone() -> None:
     assert without_persona("read stdin; hi", "You are a navigator.") == "read stdin; hi"
 

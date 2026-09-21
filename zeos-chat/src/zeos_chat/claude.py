@@ -23,6 +23,7 @@ from typing import Any
 
 from anthropic import Anthropic
 
+from zeos_chat.jobs import wants_research
 from zeos_chat.llm import Ask
 
 __all__ = [
@@ -108,12 +109,21 @@ SHAPES: dict[str, str] = {"deep-research": THOROUGH}
 #: fill the hole in: this says plainly that something is missing and is not recoverable.
 EVICTED = "[earlier part of this conversation discarded by the operating system]"
 
+#: The kernel's frames, other than the stub marker: a status refresh, a resume notice, a
+#: fault, the values a job was asked for with. They are the kernel talking to the job and
+#: land wherever the job happened to be waiting -- which is usually just after
+#: `read stdin;`, in the middle of what would otherwise be the person's turn. So they are
+#: taken out before the turns are read. Left in, a `<RESUME>` naming a changed world
+#: object was shown to the model as the person's words, and a `<STATUS>` landing ahead
+#: of a message swallowed the message.
+_FRAME = re.compile(r"<(KERNEL|RESUME|FAULT|STATUS)\b[^>]*>.*?</\1>", re.S)
+
 #: The two things in a window that are conversation. `read stdin;` is followed by what the
 #: person said, up to whatever command comes next; `write stdout ...;` is what was said
-#: back. Everything else -- `write tools`, `write ask`, `read hear`, `<STATUS ...>` -- is
-#: the job talking to the kernel, and belongs to the journal rather than to the transcript.
+#: back. Everything else -- `write tools`, `write ask`, `read hear` -- is the job talking to
+#: the kernel, and belongs to the journal rather than to the transcript.
 _TURN = re.compile(
-    r"read stdin;(?P<user>.*?)(?=\bwrite\s|\bread\s|<STATUS|<STUB|\Z)"
+    r"read stdin;(?P<user>.*?)(?=\bwrite\s|\bread\s|<STUB|\Z)"
     r"|write stdout (?P<said>.*?)(?:;|\Z)"
     r"|(?P<evicted><STUB\b.*?</STUB>)",
     re.S,
@@ -137,11 +147,17 @@ def turns_of(window: str) -> list[tuple[str, str]]:
     marks. Only the rendering is ours; the remembering is still the kernel's.
     """
     turns: list[tuple[str, str]] = []
-    for match in _TURN.finditer(window):
+    for match in _TURN.finditer(_FRAME.sub(" ", window)):
         if match.group("evicted") is not None:
             role, text = "assistant", EVICTED
         elif match.group("user") is not None:
             role, text = "user", match.group("user")
+            if wants_research(text):
+                # A research request was handed to another job, and that job's findings
+                # never come back through this conversation. Shown as a turn, the model
+                # takes it for a change of subject; so it stays in the kernel's window,
+                # where it happened, and is left out of what the model is shown.
+                continue
         else:
             role, text = "assistant", match.group("said")
         text = " ".join(text.split())
