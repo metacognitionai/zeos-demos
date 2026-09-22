@@ -19,7 +19,7 @@ cp .env.example .env        # then put your Claude key in it
 uv run zeos-chat serve --open
 ```
 
-Each README says what else it needs. 
+Each README says what else it needs.
 Every demonstration contains a canned demo that can run without a model API key as well.
 
 ## Contributing
