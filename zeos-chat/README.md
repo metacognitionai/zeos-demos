@@ -13,8 +13,8 @@ is not an end product; it is a demonstration you can sit in front of.
 
 ## Running it
 
-You need [uv](https://docs.astral.sh/uv/) and a checkout of `zeos-internal` beside
-`zeos_demos`.
+You need [uv](https://docs.astral.sh/uv/). The kernel is fetched from the
+[ZEOS repository](https://github.com/metacognitionai/zeos) on the first `uv sync`.
 
 ```bash
 uv sync --extra claude
