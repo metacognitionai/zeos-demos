@@ -1,0 +1,87 @@
+name: ci
+
+# What CONTRIBUTING.md says must hold before a pull request is accepted, run for every
+# demonstration: the test suite passes, ruff is clean, and the case lint reports nothing.
+# A new demonstration is one more entry in `matrix.demo`; it is expected to be a uv
+# project whose script of the same name has a `lint` subcommand.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    # ready_for_review is not in the default set; without it, a PR opened as a draft
+    # and later marked ready would never re-trigger the skipped lanes.
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# One run per branch: a new push cancels the previous run, except on main, where
+# every run completes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  test:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    strategy:
+      fail-fast: false
+      matrix:
+        demo: [zeos-chat]
+        python: ["3.12", "3.13"]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ${{ matrix.demo }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --frozen --python ${{ matrix.python }}
+      - name: Run tests
+        run: uv run pytest --durations=15
+
+  lint:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    strategy:
+      fail-fast: false
+      matrix:
+        demo: [zeos-chat]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: ${{ matrix.demo }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Ruff
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Case lint
+        # Zero errors and zero warnings. The command exits non-zero on errors only, so
+        # the summary line is checked for the warnings as well.
+        run: |
+          uv run ${{ matrix.demo }} lint | tee lint.txt
+          grep -q " 0 error(s), 0 warning(s)$" lint.txt
+
+  ci-gate:
+    # The single check a ruleset can require: green only when every lane above
+    # succeeded. `if: always()` matters -- without it a failed lane leaves this job
+    # skipped, and a skipped check does not block a merge.
+    if: always()
+    needs: [test, lint]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check that every lane succeeded
+        run: |
+          echo "results: ${{ join(needs.*.result, ', ') }}"
+          [ "${{ contains(needs.*.result, 'failure') }}" = "false" ] &&
+          [ "${{ contains(needs.*.result, 'cancelled') }}" = "false" ] || exit 1
