@@ -33,6 +33,12 @@ a speaker whose priority ceiling reaches the safety tier, two jobs writing one w
 object in an order the kernel does not define, a body asking for a verb its ABI does not
 declare. A tree that lints clean is a tree that can run.
 
+CI runs the first three for every demonstration on every pull request. It finds the
+demonstrations rather than listing them: a top-level directory with a `pyproject.toml`
+is one, and is expected to be a uv project whose script of the same name has a `lint`
+subcommand, as `zeos-chat lint` is. A new demonstration in that shape is covered the
+moment it is committed.
+
 ## How the work should read
 
 [AGENTS.md](AGENTS.md) is the full set of conventions and is worth reading once before a
