@@ -23,12 +23,11 @@ dev = [
 ]
 
 [tool.uv.sources]
-# A path source, not a release: this demo needs kernel work -- front doors on a
+# A git source, not a release: this demo needs kernel work -- front doors on a
 # pipe, job parameters, capability schemas, a spawn that carries its target --
-# that has landed upstream but is not in a published wheel yet. It assumes
-# zeos-internal is checked out beside zeos_demos, which is how the two are worked
-# on. Swap for a pinned `zeos>=0.2` once that work ships.
-zeos = { path = "../../zeos-internal", editable = true }
+# that has landed on main but is not in a published wheel yet. The lockfile pins
+# the commit `uv lock` resolved; `uv lock --upgrade-package zeos` moves it.
+zeos = { git = "https://github.com/metacognitionai/zeos", branch = "main" }
 
 [build-system]
 requires = ["hatchling"]
