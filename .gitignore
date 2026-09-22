@@ -1,0 +1,25 @@
+# Rules that hold for every demonstration, at any depth. A demonstration may add its
+# own .gitignore for what is particular to it, as zeos-chat does for its outbox.
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Run output -- regenerable, and large. A case's `events.jsonl` is the exception: it
+# is scripted input to a run, not output from one.
+runs/
+*.jsonl
+!**/cases/**/events.jsonl
+
+# Editor state -- personal to a checkout, never shared
+.vscode/
+.idea/
+
+# Secrets -- never committed, at any depth
+.env
