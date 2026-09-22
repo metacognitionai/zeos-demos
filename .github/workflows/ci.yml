@@ -38,7 +38,9 @@ jobs:
         with:
           enable-cache: true
       - name: Install dependencies
-        run: uv sync --frozen --python ${{ matrix.python }}
+        # Every extra: the suite exercises the model adapters against fakes, which
+        # needs their SDKs installed even though no key or network is used.
+        run: uv sync --frozen --all-extras --python ${{ matrix.python }}
       - name: Run tests
         run: uv run pytest --durations=15
 
