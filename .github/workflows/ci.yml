@@ -2,8 +2,10 @@ name: ci
 
 # What CONTRIBUTING.md says must hold before a pull request is accepted, run for every
 # demonstration: the test suite passes, ruff is clean, and the case lint reports nothing.
-# A new demonstration is one more entry in `matrix.demo`; it is expected to be a uv
-# project whose script of the same name has a `lint` subcommand.
+#
+# A demonstration is a top-level directory with a pyproject.toml, and is found rather
+# than listed, so a new one is covered the moment it is committed. It is expected to be
+# a uv project whose script of the same name has a `lint` subcommand.
 
 on:
   push:
@@ -20,12 +22,27 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  test:
+  demos:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      list: ${{ steps.find.outputs.list }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: find
+        name: Find the demonstrations
+        run: |
+          list=$(ls -d */pyproject.toml | xargs -n1 dirname | jq -R . | jq -sc .)
+          echo "found: $list"
+          echo "list=$list" >> "$GITHUB_OUTPUT"
+
+  test:
+    needs: demos
     strategy:
       fail-fast: false
       matrix:
-        demo: [zeos-chat]
+        demo: ${{ fromJSON(needs.demos.outputs.list) }}
         python: ["3.12", "3.13"]
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -45,11 +62,11 @@ jobs:
         run: uv run pytest --durations=15
 
   lint:
-    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    needs: demos
     strategy:
       fail-fast: false
       matrix:
-        demo: [zeos-chat]
+        demo: ${{ fromJSON(needs.demos.outputs.list) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -78,7 +95,7 @@ jobs:
     # succeeded. `if: always()` matters -- without it a failed lane leaves this job
     # skipped, and a skipped check does not block a merge.
     if: always()
-    needs: [test, lint]
+    needs: [demos, test, lint]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
