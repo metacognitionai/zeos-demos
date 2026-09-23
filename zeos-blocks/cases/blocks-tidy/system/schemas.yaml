@@ -1,0 +1,4 @@
+# Generated. The whole channel from the model to the table.
+move:
+  block: enum(b1, b2, g1, g2, o1, p1, r1, r2, y1)
+  to: enum(s1, s2, s3, s4)

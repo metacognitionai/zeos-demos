@@ -1,0 +1,7 @@
+# Generated. Somebody reaching in preempts the planner.
+- vector: hand-in-workspace
+  source: table.disturbed
+  handler: noticed
+  priority: 10
+  policy: queue
+  deadline: 200ms

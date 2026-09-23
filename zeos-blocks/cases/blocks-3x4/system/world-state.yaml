@@ -1,0 +1,10 @@
+# The opening workspace, bottom-to-top. Chosen rather than generated: the tutorial walks
+# through this table, and `g1` is buried under two blocks on purpose, so the shortest
+# route to it is three moves and a hand lifting it out is a thing no arm could have done.
+initial:
+  table.s1: "g1,r1,y1"
+  table.s2: "b1"
+  table.s3: "-"
+  # What the arm last said. Latched by `arm.report`, mapped as a status region, and the
+  # only trace a refused move leaves anywhere.
+  arm.last: "nothing asked for yet"

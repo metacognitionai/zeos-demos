@@ -1,0 +1,61 @@
+# Generated. One actuator per position, plus the operator's door and the arm.
+- name: operator.console
+  ring: TRUSTED
+  principal: user
+  device: true
+  utterance_source: operator
+  reply_to: operator.replies
+  capacity: 256
+
+- name: operator.replies
+  ring: TRUSTED
+  principal: user
+  sink: true
+  capacity: 2048
+
+# One arm, however many jobs want it. Nothing on this pipe is addressed to
+# anybody, so there is nothing to mis-route: a device that answered would need a
+# pipe per job, or two jobs would be handed each other's answers.
+- name: arm.requests
+  ring: TRUSTED
+  principal: device
+  sink: true
+  capacity: 32
+
+# What the arm said about the last move. Latched, so it is the current value and
+# not a log, and mapped by every planner as a status region: a refused move leaves
+# the table untouched, and this is the only thing that says so.
+- name: arm.report
+  ring: TRUSTED
+  principal: device
+  device: true
+  world_object: arm.last
+  capacity: 64
+
+# The doorbell a hand rings; the vector on it preempts whatever is planning.
+- name: table.disturbed
+  ring: TRUSTED
+  principal: user
+  device: true
+  capacity: 32
+
+- name: table.report.s1
+  ring: TRUSTED
+  principal: device
+  device: true
+  world_object: table.s1
+  capacity: 64
+
+- name: table.report.s2
+  ring: TRUSTED
+  principal: device
+  device: true
+  world_object: table.s2
+  capacity: 64
+
+- name: table.report.s3
+  ring: TRUSTED
+  principal: device
+  device: true
+  world_object: table.s3
+  capacity: 64

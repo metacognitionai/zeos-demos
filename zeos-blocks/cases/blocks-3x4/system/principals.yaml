@@ -1,0 +1,9 @@
+# Generated. Who may ask for what.
+- id: operator
+  label: the person at the table
+  ring: TRUSTED
+  integrity: 2
+  ceiling: 50
+  capabilities:
+    - arm.requests
+    - operator.replies

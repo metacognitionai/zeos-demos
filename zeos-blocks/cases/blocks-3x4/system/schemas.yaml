@@ -1,0 +1,6 @@
+# The whole channel from the model to the table: which block, and which position. Two
+# bits to choose a block, a little over one and a half to choose a position, 3.58 bits
+# per move. Nothing else a planner produces reaches the table.
+move:
+  block: enum(b1, g1, r1, y1)
+  to: enum(s1, s2, s3)

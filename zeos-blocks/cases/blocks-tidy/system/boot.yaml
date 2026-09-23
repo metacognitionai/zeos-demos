@@ -1,0 +1,5 @@
+# One job boots, and it is the one nobody asked for. `tidy` is a standing
+# instruction rather than a request, so it is running before anybody speaks.
+# The stacker is still not booted: it exists only when somebody does, and when
+# it does it outranks this and takes the machine.
+- tidy
