@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+runs/
+.env
+*.jsonl.out
+
+# Generated workspaces. `zeos-blocks new` writes these; only blocks-3x4 is checked in.
+cases/blocks-*x*/
+!cases/blocks-3x4/

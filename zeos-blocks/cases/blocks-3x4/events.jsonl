@@ -1,0 +1,25 @@
+# The scripted run: what the operator says, and when somebody reaches in.
+#
+# `at` is in ticks, and a tick is one token boundary -- so these read as decodes rather
+# than as wall clock. Every entry is exactly one of `say` (into the front door) or `hand`
+# (somebody moving a block themselves).
+
+# The request, in the words a person would use. Nothing is running at this point: the case
+# boots no jobs at all, so this sentence is what brings the stacker into being.
+{"at": 2, "say": "move the green block from stack 1 to stack 2"}
+
+# Somebody reaches in one move into the plan. By this tick the stacker has cleared `y1`
+# off the stack and is *running*, part way through working out the next move -- not
+# parked, not waiting for anything. Nothing in this workspace takes time, so there is no
+# idle window for a disturbance to land in politely; it lands on a job that is using the
+# machine, and the kernel takes the machine off it at the next token boundary.
+#
+# They lift `g1` straight out from under `r1` and put it where it was asked to go. **No arm
+# could do that** -- rule 1 forbids moving a block with something on top of it -- but a
+# person is not bound by the rules a table imposes on a machine, and a disturbance that
+# could only ever produce reachable states would not be much of a test.
+#
+# So the stacker resumes to a table its plan no longer describes: the job is already done.
+# It reads the lines, as it does before every decision, and stops. One move, not three,
+# and nothing anywhere told it what happened.
+{"at": 7, "hand": {"block": "g1", "to": "s2"}}

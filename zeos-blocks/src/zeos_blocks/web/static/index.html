@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blocks</title>
+<link rel="stylesheet" href="/table.css">
+</head>
+<body>
+<header>
+  <h1>blocks</h1>
+  <p class="sub">solving blocks world in zeos</p>
+  <!-- What is deciding the moves. The kernel cannot tell; a person watching should. -->
+  <span id="planner" title="what is deciding the moves"></span>
+  <!-- What is alive, and whether it is running. Empty and invisible when the workspace
+       has no jobs at all, which is its state until somebody speaks to it. -->
+  <div id="activity" aria-live="polite" hidden>
+    <span class="dot" aria-hidden="true"></span>
+    <span id="activity-text"></span>
+  </div>
+  <button id="panel-toggle" type="button">Kernel</button>
+</header>
+
+<main>
+  <section id="workspace">
+    <!-- Shown only if the kernel thread stops. A page that simply went quiet would look
+         like a workspace with nothing to do. -->
+    <p id="stopped" hidden></p>
+    <div id="table" class="table"></div>
+    <p class="hint">Drag a block onto another stack to move it yourself.</p>
+
+    <form id="say-form" autocomplete="off">
+      <input id="say" type="text" placeholder="move the green block from stack 1 to stack 2"
+             aria-label="what to ask for">
+      <button type="submit">Ask</button>
+      <!-- A control, not a shortcut for typing something: the background goal declares no
+           phrasing at all, so nothing typed can reach it. Hidden unless the case has one. -->
+      <button id="tidy" type="button" hidden
+              title="start the background goal by name">Tidy</button>
+    </form>
+
+    <div class="run-head">
+      <span>what has happened</span>
+      <button id="clear" type="button" title="Clear the lines below. The kernel's own
+              journal is not affected.">Clear</button>
+    </div>
+    <ul id="transcript" aria-live="polite"></ul>
+  </section>
+
+  <aside id="panel" hidden>
+    <h2>the kernel's record</h2>
+    <p class="note">Not a log added for the demonstration. These are the events the
+      kernel journals, and the ones the tests assert on.</p>
+    <ul id="journal"></ul>
+  </aside>
+</main>
+
+<script src="/table.js"></script>
+</body>
+</html>

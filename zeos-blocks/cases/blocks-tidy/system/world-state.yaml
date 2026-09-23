@@ -1,0 +1,7 @@
+# Generated. The opening workspace, bottom-to-top.
+initial:
+  table.s1: "r1,y1,r2"
+  table.s2: "g1,o1,g2"
+  table.s3: "b1,p1,b2"
+  table.s4: "-"
+  arm.last: "nothing asked for yet"
