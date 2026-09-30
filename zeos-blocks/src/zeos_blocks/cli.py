@@ -1,4 +1,4 @@
-"""``zeos-blocks``: lint the case, run it, serve it, or generate a bigger one."""
+"""``zeos-blocks``: lint the case, run it, drive it, serve it, or generate a bigger one."""
 
 from __future__ import annotations
 
@@ -197,6 +197,23 @@ def _cmd_serve(args: argparse.Namespace) -> int:
     )
 
 
+def _cmd_console(args: argparse.Namespace) -> int:
+    from zeos_blocks.console import console
+
+    bundle = load_case(Path(args.case))
+    descriptors, _valued = seat_maps(bundle.descriptors, bundle.pipes)
+    return console(
+        Path(args.case),
+        _planner(args.planner, args.model, descriptors, args.max_tokens),
+        plain=args.plain,
+        # The same reasoning as `serve`: the pause between steps is for a planner that
+        # answers instantly, and a model on the end of an API call already paces itself.
+        pace=0.0 if args.planner == "claude" else args.pace / 1000,
+        settle=args.settle / 1000,
+        journal=Path(args.journal) if args.journal else None,
+    )
+
+
 def _cmd_new(args: argparse.Namespace) -> int:
     target = Path(args.into or f"cases/blocks-{args.positions}x{args.blocks}")
     write_case(target, positions=args.positions, blocks=args.blocks, tidy=args.tidy)
@@ -277,6 +294,43 @@ def main(argv: Sequence[str] | None = None) -> int:
         "watch (default 200); ignored with --planner claude, which paces itself",
     )
     p_serve.set_defaults(func=_cmd_serve)
+
+    p_console = sub.add_parser("console", help="drive the table in this terminal")
+    p_console.add_argument("--case", default=DEFAULT_CASE)
+    p_console.add_argument("--planner", choices=("stub", "claude"), default="stub")
+    p_console.add_argument("--model", default=None, help=f"overrides {config.MODEL}")
+    p_console.add_argument(
+        "--max-tokens",
+        type=int,
+        default=512,
+        help="room the model has to answer in; too little and it is cut off before the command",
+    )
+    p_console.add_argument(
+        "--plain",
+        action="store_true",
+        help="scrolling output instead of taking the screen; the default where "
+        "stdout is not a terminal",
+    )
+    p_console.add_argument(
+        "--journal",
+        default=None,
+        help="write the kernel's journal on exit, to step through with `zeos debug`",
+    )
+    p_console.add_argument(
+        "--settle",
+        type=float,
+        default=800,
+        help="milliseconds a move is given to be read before the next one starts "
+        "(default 800); nothing runs while a block is in the air",
+    )
+    p_console.add_argument(
+        "--pace",
+        type=float,
+        default=200,
+        help="milliseconds per token boundary for the stub planner, so a person can "
+        "watch (default 200); ignored with --planner claude, which paces itself",
+    )
+    p_console.set_defaults(func=_cmd_console)
 
     p_new = sub.add_parser("new", help="generate a case for a bigger workspace")
     p_new.add_argument("--positions", type=int, default=5)
