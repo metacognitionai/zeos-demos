@@ -34,7 +34,13 @@ That is the whole of it. No key, no network, no weights: the move is worked out 
 by a planner called the *stub*, so the demonstration runs for anybody. Everything else is
 real, including the kernel, the case, the journal and every check.
 
-To watch it in a terminal instead, with a scripted operator and a scripted disturbance:
+To drive it in the terminal instead type:
+
+```bash
+uv run zeos-blocks console
+```
+
+To watch a scripted run instead, with a scripted operator and a scripted disturbance:
 
 ```bash
 uv run zeos-blocks run --events cases/blocks-3x4/events.jsonl
@@ -69,8 +75,8 @@ uv run zeos-blocks run --planner claude --say "get the green one onto stack 2"
 
 Note the `--say`. This case **boots no jobs**: the stacker exists only because somebody
 asked for it, so a run with nothing said to it has nothing to do and tells you so rather
-than sitting there. `--events` does the same job from a file, and `serve` gives you a box
-to type into.
+than sitting there. `--events` does the same job from a file, and `console` and `serve`
+both give you a box to type into.
 
 ### Stepping through a run in the ZEOS debugger
 
@@ -83,19 +89,20 @@ uv run zeos debug cases/blocks-3x4 --journal run.jsonl
 
 That gives you the case drawn as wiring, a scrubber over every tick of the run, and at
 each frame: which jobs are alive, what is on the suspension stack, every pipe and how full
-it is, the world state, and any faults. `serve --journal run.jsonl` does the same for a
-session you drove yourself, written when you stop it. `zeos inspect run.jsonl` is the
-one-line summary, and `-o page.html` exports a self-contained page instead of serving one.
+it is, the world state, and any faults. `console --journal run.jsonl` and `serve --journal
+run.jsonl` do the same for a session you drove yourself, written when you stop it --
+including with ctrl-c part way through a run. `zeos inspect run.jsonl` is the one-line
+summary, and `-o page.html` exports a self-contained page instead of serving one.
 
 It is worth opening once even if you never use it again. The journal is not logging added
 for the demonstration; it is what the kernel recorded, and the debugger is that record
 drawn rather than a prettier copy of the run.
 
 `--planner claude` is the same case, the same descriptor and the same kernel. Only the
-thing choosing the move changes, and the kernel cannot tell the difference. The page says
-which is running, in the header: `stub`, or the model's name. That label is there for you
-rather than for anything in the system, and it is the only place the difference is visible
-at all. It needs `uv sync --extra claude` and a key:
+thing choosing the move changes, and the kernel cannot tell the difference. The page and
+the console both say which is running, in the header: `stub`, or the model's name. That
+label is there for you rather than for anything in the system, and it is the only place
+the difference is visible at all. It needs `uv sync --extra claude` and a key:
 
 ```bash
 cp .env.example .env        # then put your key in it
