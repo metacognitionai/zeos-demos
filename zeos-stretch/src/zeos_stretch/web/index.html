@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RoboZeos · Stretch</title>
+<style>
+:root {
+  --bg: #eef1f4; --surface: #ffffff; --sunk: #f5f7f9; --ink: #1b2330; --muted: #5d6a79;
+  --line: #d6dde5; --robot: #0e8a8c; --robot-soft: #d7efef; --alarm: #d23f2a;
+  --alarm-soft: #fbe3de; --coffee: #7a4a28; --fruit: #3f8f3a; --fruit-soft: #e3f1df;
+  --ware: #56657a; --ware-soft: #e6ebf1; --wait: #a86b00; --wait-soft: #fbefd6;
+  --susp: #6b4bb0; --susp-soft: #ece5f8; --floor: #f8f9fb;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #11161c; --surface: #19212a; --sunk: #141b22; --ink: #e3e9ef; --muted: #93a1b0;
+    --line: #2b3642; --robot: #3cc4c6; --robot-soft: #173335; --alarm: #ff6b55;
+    --alarm-soft: #3a1f1b; --coffee: #d29a6c; --fruit: #7dcb72; --fruit-soft: #1c3020;
+    --ware: #a8b6c7; --ware-soft: #222c37; --wait: #e8b24e; --wait-soft: #332812;
+    --susp: #b59cf0; --susp-soft: #2a2140; --floor: #161d25; color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--sans); padding: 0 20px 28px; }
+header { max-width: 1320px; margin: 0 auto; display: flex; align-items: center; gap: 14px; padding: 18px 0 14px; flex-wrap: wrap; }
+header h1 { font-size: 20px; margin: 0; font-weight: 700; letter-spacing: -0.01em; }
+.badge { font: 600 12px var(--sans); padding: 3px 10px; border-radius: 99px; background: var(--robot-soft); color: var(--robot); }
+.badge.playback { background: var(--ware-soft); color: var(--ware); }
+.clock { font: 600 13px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+header .spacer { flex: 1; }
+button { font: 600 13px var(--sans); border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 8px 14px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--robot); }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--robot); outline-offset: 2px; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button.primary { background: var(--robot); border-color: var(--robot); color: #fff; }
+button.danger { background: var(--alarm); border-color: var(--alarm); color: #fff; }
+select { font: 14px var(--sans); padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+main { max-width: 1320px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.card h2 { margin: 0 0 10px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.stack { display: grid; gap: 16px; align-content: start; }
+.map { align-self: start; }
+.map svg { display: block; width: 100%; height: auto; }
+.map.alarm { border-color: var(--alarm); box-shadow: 0 0 0 3px var(--alarm-soft); }
+svg text { fill: var(--ink); font-family: var(--sans); }
+svg .muted { fill: var(--muted); }
+svg .zone { fill: var(--sunk); stroke: var(--line); }
+#robot { transition: transform .25s linear; }
+
+.speech { display: grid; grid-template-columns: 56px 1fr; gap: 14px; align-items: start; }
+.avatar { width: 56px; height: 56px; border-radius: 16px; background: var(--robot-soft); display: grid; place-items: center; }
+.bubble { position: relative; background: var(--sunk); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-height: 56px; }
+.bubble .now { font-size: 17px; font-weight: 600; line-height: 1.35; }
+.bubble .why { color: var(--muted); margin-top: 2px; }
+.bubble.thinking .now { color: var(--robot); }
+.bubble.alarm { border-color: var(--alarm); background: var(--alarm-soft); }
+.bar { height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; margin-top: 12px; }
+.bar > div { height: 100%; width: 0; background: var(--robot); transition: width .25s linear; }
+.cmd { font: 12px var(--mono); color: var(--muted); margin-top: 6px; }
+
+.controls { display: grid; gap: 12px; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.row .label { flex-basis: 100%; font-size: 12px; color: var(--muted); }
+.note { font-size: 12.5px; color: var(--muted); }
+.feedback { font-size: 12.5px; min-height: 1.4em; color: var(--robot); }
+.feedback.bad { color: var(--alarm); }
+
+table.jobs { width: 100%; border-collapse: collapse; }
+table.jobs td { padding: 8px 4px; border-top: 1px solid var(--line); vertical-align: top; }
+table.jobs tr:first-child td { border-top: 0; }
+.jobname { font-weight: 600; }
+.trig { font: 11.5px var(--mono); color: var(--muted); }
+.prio { font: 600 12px var(--mono); color: var(--muted); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pill { display: inline-block; font: 600 11.5px var(--sans); padding: 2px 9px; border-radius: 99px; background: var(--ware-soft); color: var(--ware); white-space: nowrap; }
+.pill.running { background: var(--robot-soft); color: var(--robot); }
+.pill.waiting { background: var(--wait-soft); color: var(--wait); }
+.pill.suspended { background: var(--susp-soft); color: var(--susp); }
+.pill.ready { background: var(--wait-soft); color: var(--wait); }
+.body-chip { display: inline-block; margin-left: 6px; font: 600 11px var(--sans); color: #fff; background: var(--robot); border-radius: 6px; padding: 1px 6px; }
+.notice { font: 11.5px var(--mono); color: var(--susp); margin-top: 4px; }
+
+.lines { font: 12px/1.6 var(--mono); max-height: 300px; overflow: auto; background: var(--sunk); border-radius: 8px; padding: 8px 12px; }
+.lines div { white-space: pre-wrap; word-break: break-word; }
+.lines .t { color: var(--muted); font-variant-numeric: tabular-nums; }
+.k-interrupt { color: var(--alarm); }
+.k-resume { color: var(--susp); }
+.k-body { color: var(--robot); }
+.k-world, .k-you { color: var(--wait); }
+.k-fault { color: var(--alarm); font-weight: 700; }
+.k-command { color: var(--muted); }
+.story li { list-style: none; }
+.story .ok { color: var(--fruit); } .story .no { color: var(--alarm); }
+.lost { max-width: 1320px; margin: 0 auto 12px; padding: 10px 14px; border-radius: 10px; background: var(--alarm-soft); color: var(--alarm); font-weight: 600; }
+@media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { #robot, .bar > div { transition: none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>RoboZeos · Stretch</h1>
+  <span id="mode" class="badge">…</span>
+  <span id="clock" class="clock">t = 0.0s</span>
+  <span class="spacer"></span>
+  <button id="restart" type="button">Restart the morning</button>
+</header>
+<div id="lost" class="lost" hidden>Lost the connection to <code>zeos-stretch serve</code>. Is it still running?</div>
+<div id="crash" class="lost" hidden></div>
+<main>
+  <div class="stack">
+  <section class="card map" id="mapcard" aria-label="Atrium floor plan">
+    <h2>The atrium</h2>
+    <svg viewBox="0 0 820 500" role="img" aria-label="Floor plan with the robot's position">
+      <rect x="0" y="0" width="820" height="500" rx="10" fill="var(--floor)"/>
+      <!-- corridor -->
+      <rect x="598" y="150" width="84" height="250" rx="8" fill="none" stroke="var(--line)" stroke-dasharray="6 5"/>
+      <text x="640" y="170" text-anchor="middle" font-size="12" class="muted">corridor</text>
+      <!-- kitchen -->
+      <rect class="zone" x="530" y="28" width="270" height="110" rx="10"/>
+      <text x="545" y="48" font-size="12" class="muted">kitchen</text>
+      <rect x="560" y="62" width="60" height="50" rx="6" fill="var(--surface)" stroke="var(--coffee)" stroke-width="2"/>
+      <text x="590" y="128" text-anchor="middle" font-size="12">coffee machine</text>
+      <text id="machine" x="590" y="78" text-anchor="middle" font-size="11" class="muted">idle</text>
+      <rect id="hotplate" x="700" y="62" width="60" height="50" rx="6" fill="var(--alarm-soft)" stroke="var(--alarm)" stroke-width="2"/>
+      <text x="730" y="128" text-anchor="middle" font-size="12">hotplate</text>
+      <text id="hotplate-label" x="730" y="92" text-anchor="middle" font-size="11">on</text>
+      <g id="smoke" opacity="0">
+        <circle cx="712" cy="44" r="14" fill="var(--muted)" opacity=".35"/>
+        <circle cx="735" cy="34" r="18" fill="var(--muted)" opacity=".35"/>
+        <circle cx="758" cy="46" r="13" fill="var(--muted)" opacity=".35"/>
+        <text x="735" y="20" text-anchor="middle" font-size="12" font-weight="700" fill="var(--alarm)" style="fill: var(--alarm)">SMOKE</text>
+      </g>
+      <!-- seating area -->
+      <rect class="zone" x="40" y="150" width="400" height="220" rx="10"/>
+      <text x="55" y="170" font-size="12" class="muted">seating area</text>
+      <ellipse cx="160" cy="205" rx="52" ry="20" fill="var(--fruit-soft)" stroke="var(--fruit)" stroke-width="2"/>
+      <text x="160" y="209" text-anchor="middle" font-size="12">fruit basket</text>
+      <text id="basket" x="160" y="240" text-anchor="middle" font-size="11" class="muted"></text>
+      <rect x="290" y="186" width="104" height="38" rx="6" fill="var(--ware-soft)" stroke="var(--ware)" stroke-width="2"/>
+      <text x="342" y="209" text-anchor="middle" font-size="12">tray</text>
+      <text id="tray" x="342" y="240" text-anchor="middle" font-size="11" class="muted"></text>
+      <rect x="140" y="262" width="230" height="84" rx="8" fill="var(--surface)" stroke="var(--line)" stroke-width="2"/>
+      <text x="255" y="362" text-anchor="middle" font-size="12" class="muted">table</text>
+      <g id="table-items"></g>
+      <!-- dock -->
+      <rect class="zone" x="40" y="410" width="80" height="60" rx="8"/>
+      <text x="80" y="486" text-anchor="middle" font-size="12" class="muted">dock</text>
+      <!-- desks -->
+      <g id="desks"></g>
+      <!-- the coffee -->
+      <g id="coffee"><circle r="9" fill="var(--coffee)"/><rect x="7" y="-4" width="5" height="8" rx="2" fill="var(--coffee)"/></g>
+      <!-- the robot -->
+      <g id="robot">
+        <circle r="22" fill="var(--robot)" opacity=".18"/>
+        <rect x="-13" y="-15" width="26" height="30" rx="7" fill="var(--robot)"/>
+        <rect x="-8" y="-9" width="16" height="7" rx="3" fill="#fff"/>
+        <circle cx="-3.5" cy="-5.5" r="1.8" fill="var(--robot)"/><circle cx="3.5" cy="-5.5" r="1.8" fill="var(--robot)"/>
+        <rect x="-1.5" y="-24" width="3" height="9" fill="var(--robot)"/><circle cy="-25" r="3" fill="var(--robot)"/>
+      </g>
+    </svg>
+  </section>
+
+  <section class="card">
+    <h2>What the kernel and the body did</h2>
+    <div id="lines" class="lines"></div>
+  </section>
+  </div>
+
+  <div class="stack">
+    <section class="card" aria-live="polite">
+      <h2>Stretch says</h2>
+      <div class="speech">
+        <div class="avatar" aria-hidden="true">
+          <svg width="34" height="34" viewBox="-17 -17 34 34"><rect x="-12" y="-11" width="24" height="24" rx="7" fill="var(--robot)"/><rect x="-7" y="-5" width="14" height="6" rx="3" fill="#fff"/><circle cx="-3" cy="-2" r="1.6" fill="var(--robot)"/><circle cx="3" cy="-2" r="1.6" fill="var(--robot)"/><rect x="-1.2" y="-17" width="2.4" height="6" fill="var(--robot)"/></svg>
+        </div>
+        <div id="bubble" class="bubble">
+          <div id="now" class="now">Starting up…</div>
+          <div id="why" class="why"></div>
+          <div class="bar"><div id="progress"></div></div>
+          <div id="cmd" class="cmd"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card controls">
+      <h2>You</h2>
+      <div class="row">
+        <span class="label">Ask for a coffee at a desk</span>
+        <select id="desk" aria-label="Desk"></select>
+        <button id="order" class="primary" type="button">Order a coffee</button>
+      </div>
+      <div class="row">
+        <span class="label">Something is burning</span>
+        <button id="alarm" class="danger" type="button">Set off the smoke alarm</button>
+      </div>
+      <div class="row">
+        <span class="label">Reset the room</span>
+        <button id="mess" type="button">Put fruit and cups back on the table</button>
+        <button id="hotplate-on" type="button">Turn the hotplate back on</button>
+      </div>
+      <div id="feedback" class="feedback" role="status"></div>
+      <div id="playback-note" class="note" hidden>This is the scripted morning, replayed on its own schedule. Start <code>zeos-stretch serve --machine claude</code> to decide yourself when the coffee is ordered and when the alarm goes off.</div>
+    </section>
+
+    <section class="card">
+      <h2>Behaviours</h2>
+      <table class="jobs"><tbody id="jobs"></tbody></table>
+    </section>
+
+    <section class="card" id="storycard" hidden>
+      <h2>How the morning came out</h2>
+      <ul id="story" class="story" style="margin:0;padding:0"></ul>
+    </section>
+  </div>
+
+
+</main>
+
+<script>
+const PLACES = {
+  "dock": [80, 440], "table": [255, 304], "coffee-machine": [590, 150],
+  "hotplate": [730, 150], "corridor": [640, 270],
+};
+for (let n = 1; n <= 9; n++) PLACES[`desk-${n}`] = [330 + (n - 1) * 56, 440];
+const KITCHEN = new Set(["coffee-machine", "hotplate"]);
+const isDesk = p => /^desk-\d$/.test(p);
+const across = (a, b) => (KITCHEN.has(a) && isDesk(b)) || (isDesk(a) && KITCHEN.has(b));
+const FRUIT = new Set(["apple", "banana", "orange", "pear"]);
+const $ = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+
+function el(tag, attrs, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+// desks and the desk picker, drawn once
+(() => {
+  const g = $("desks");
+  for (let n = 1; n <= 9; n++) {
+    const [x, y] = PLACES[`desk-${n}`];
+    const grp = el("g", { id: `desk-${n}` });
+    grp.append(el("rect", { x: x - 20, y: y + 4, width: 40, height: 26, rx: 5, fill: "var(--surface)", stroke: "var(--line)", "stroke-width": 2 }));
+    grp.append(el("text", { x, y: y + 22, "text-anchor": "middle", "font-size": 12 }, `desk ${n}`));
+    g.append(grp);
+    const opt = document.createElement("option");
+    opt.value = `desk-${n}`; opt.textContent = `desk ${n}`;
+    if (n === 7) opt.selected = true;
+    $("desk").append(opt);
+  }
+})();
+
+function lerp(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]; }
+function robotAt(robot) {
+  const d = robot.doing;
+  const here = PLACES[robot.position] || PLACES.dock;
+  if (!d || d.origin === d.target) return here;
+  const a = PLACES[d.origin] || here, b = PLACES[d.target] || here, t = d.progress;
+  if (d.command.startsWith("put ")) {
+    // drive to the table, then the item goes into its container
+    const travel = d.origin === "table" ? 0 : 3 / 7;
+    return travel ? lerp(a, b, Math.min(t / travel, 1)) : b;
+  }
+  if (across(d.origin, d.target)) {
+    const c = PLACES.corridor;
+    return t < .5 ? lerp(a, c, t * 2) : lerp(c, b, (t - .5) * 2);
+  }
+  return lerp(a, b, t);
+}
+
+function renderMap(s) {
+  const [rx, ry] = robotAt(s.robot);
+  $("robot").setAttribute("transform", `translate(${rx} ${ry})`);
+  const coffee = s.world.coffee;
+  let cx = null;
+  if (coffee === "gripper") cx = [rx + 20, ry - 14];
+  else if (PLACES[coffee]) { const [x, y] = PLACES[coffee]; cx = coffee === "coffee-machine" ? [588, 98] : [x + (isDesk(coffee) ? 0 : 26), y - (isDesk(coffee) ? 2 : 18)]; }
+  $("coffee").setAttribute("opacity", cx ? 1 : 0);
+  if (cx) $("coffee").setAttribute("transform", `translate(${cx[0]} ${cx[1]})`);
+  const g = $("table-items"); g.replaceChildren();
+  s.world.table.forEach((item, i) => {
+    const x = 152 + (i % 4) * 54, y = 272 + Math.floor(i / 4) * 34;
+    const fruit = FRUIT.has(item);
+    g.append(el("rect", { x, y, width: 50, height: 26, rx: 13, fill: fruit ? "var(--fruit-soft)" : "var(--ware-soft)", stroke: fruit ? "var(--fruit)" : "var(--ware)" }));
+    g.append(el("text", { x: x + 25, y: y + 17, "text-anchor": "middle", "font-size": 11 }, item));
+  });
+  $("basket").textContent = s.world.basket.join(" · ") || "empty";
+  $("tray").textContent = s.world.tray.join(" · ") || "empty";
+  $("machine").textContent = s.world.machine;
+  const on = s.world.hotplate === "on";
+  $("hotplate").setAttribute("fill", on ? "var(--alarm-soft)" : "var(--sunk)");
+  $("hotplate").setAttribute("stroke", on ? "var(--alarm)" : "var(--line)");
+  $("hotplate-label").textContent = on ? "on" : "off";
+  $("smoke").setAttribute("opacity", s.controls.alarm_live ? 1 : 0);
+  $("mapcard").classList.toggle("alarm", s.controls.alarm_live);
+  for (let n = 1; n <= 9; n++) {
+    const r = $(`desk-${n}`).querySelector("rect");
+    const ordered = s.world.order === `desk-${n}` && s.world.coffee !== `desk-${n}`;
+    r.setAttribute("stroke", ordered ? "var(--coffee)" : "var(--line)");
+  }
+}
+
+function renderSpeech(s) {
+  const b = $("bubble"), d = s.robot.doing, t = s.thinking;
+  b.classList.toggle("thinking", !!t);
+  b.classList.toggle("alarm", s.controls.alarm_live);
+  if (t) {
+    $("now").textContent = "Let me think about that…";
+    $("why").textContent = `${t.behaviour} is asking Claude for its next command (${t.for.toFixed(1)}s). The atrium's clock waits meanwhile.`;
+  } else if (d) {
+    $("now").textContent = d.says;
+    $("why").textContent = s.because[d.behaviour] || "";
+  } else if (s.behaviours.some(x => ["running", "ready"].includes(x.state))) {
+    $("now").textContent = "Deciding what to do next…"; $("why").textContent = "";
+  } else {
+    $("now").textContent = s.world.table.length ? "Waiting." : "All done. Nothing to do right now.";
+    $("why").textContent = s.world.table.length ? "" : "The table is clear. Order a coffee, or put things back on the table.";
+  }
+  $("progress").style.width = d ? `${Math.round(d.progress * 100)}%` : "0%";
+  $("cmd").textContent = d ? `${d.behaviour} » ${d.command}${s.robot.queued ? `   (${s.robot.queued} queued)` : ""}` : "";
+}
+
+function renderJobs(s) {
+  const rows = s.behaviours.map(b => {
+    const trig = b.trigger === "boot" ? "starts at boot" : `interrupt on ${b.trigger}`;
+    const notice = b.notice ? `<div class="notice">last told: ${escapeHtml(b.notice.replace(/<\/?RESUME>/g, "").trim())}</div>` : "";
+    return `<tr><td><div class="jobname">${b.name}${b.wearing ? '<span class="body-chip">has the body</span>' : ""}</div><div class="trig">${trig}</div>${notice}</td>
+      <td class="prio">prio ${b.priority}</td><td style="text-align:right"><span class="pill ${b.state}">${b.state}</span></td></tr>`;
+  });
+  $("jobs").innerHTML = rows.join("");
+}
+
+let pinned = true;
+$("lines").addEventListener("scroll", e => { const l = e.target; pinned = l.scrollTop + l.clientHeight >= l.scrollHeight - 8; });
+function renderLog(s) {
+  const box = $("lines");
+  box.innerHTML = s.log.map(l => `<div class="k-${l.kind}"><span class="t">${l.t.toFixed(1).padStart(6)}s</span>  ${escapeHtml(l.text)}</div>`).join("");
+  if (pinned) box.scrollTop = box.scrollHeight;
+}
+
+function renderControls(s) {
+  const c = s.controls, live = c.enabled;
+  const MODES = {
+    live: s.machine === "claude" ? "live · Claude is driving" : "live · the tapes answer",
+    replay: s.machine === "claude" ? "replaying a Claude session" : "replaying a recorded session",
+    playback: "scripted playback",
+  };
+  $("mode").textContent = MODES[s.mode] || s.mode;
+  $("mode").classList.toggle("playback", s.mode !== "live");
+  $("playback-note").hidden = s.mode !== "playback";
+  $("order").disabled = !live; $("desk").disabled = !live;
+  $("alarm").disabled = !live || c.alarm_live;
+  $("mess").disabled = !live || c.tidy_live || !c.table_empty;
+  $("hotplate-on").disabled = !live || !c.hotplate_off;
+  $("clock").textContent = `t = ${s.clock.toFixed(1)}s`;
+  const story = s.story || [];
+  $("storycard").hidden = !story.length;
+  $("story").innerHTML = story.map(v => `<li class="${v.held ? "ok" : "no"}">${v.held ? "✓" : "✗"} ${escapeHtml(v.claim)}</li>`).join("");
+}
+
+function escapeHtml(t) { return t.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+async function poll() {
+  try {
+    const r = await fetch("/state", { cache: "no-store" });
+    const s = await r.json();
+    $("lost").hidden = true;
+    $("crash").hidden = !s.crash;
+    if (s.crash) $("crash").textContent = `The atrium stopped: ${s.crash}. The terminal running zeos-stretch serve has the traceback.`;
+    if (s.robot) { renderMap(s); renderSpeech(s); renderJobs(s); renderLog(s); renderControls(s); }
+  } catch { $("lost").hidden = false; }
+  setTimeout(poll, 250);
+}
+
+let feedbackTimer = null;
+async function ask(action, body, ok) {
+  const fb = $("feedback");
+  clearTimeout(feedbackTimer);
+  feedbackTimer = setTimeout(() => { fb.textContent = ""; }, 5000);
+  try {
+    const r = await fetch(`/${action}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+    const j = await r.json();
+    fb.classList.toggle("bad", !j.ok);
+    fb.textContent = j.ok ? ok : j.why;
+  } catch { fb.classList.add("bad"); fb.textContent = "The server did not answer."; }
+}
+
+$("order").onclick = () => ask("order", { desk: $("desk").value }, `Coffee ordered for ${$("desk").value.replace("-", " ")}.`);
+$("alarm").onclick = () => ask("alarm", {}, "The smoke alarm is sounding.");
+$("mess").onclick = () => ask("mess", {}, "Fruit and cups are back on the table.");
+$("hotplate-on").onclick = () => ask("hotplate", {}, "The hotplate is on again.");
+$("restart").onclick = () => ask("restart", {}, "The morning starts again.");
+poll();
+</script>
+</body>
+</html>

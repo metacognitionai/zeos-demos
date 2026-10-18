@@ -1,0 +1,7 @@
+# The one body in the atrium. A behaviour that declares `requires:` wears it through a
+# lease, and a more urgent behaviour takes it back under the wearer's release policy.
+platform: stretch
+body:
+  locomotion: wheeled
+  tooling: [gripper]
+  sensors: [camera]

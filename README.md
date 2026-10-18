@@ -22,6 +22,14 @@ Here are some example demos:
   </tr>
 </table>
 
+## The demonstrations
+
+| directory | what it is |
+| --- | --- |
+| [`zeos-chat`](zeos-chat) | A chatbot in a browser with no chat loop: the conversation is a job, and waiting, interruption and stopping are the kernel's. |
+| [`zeos-blocks`](zeos-blocks) | Blocks world from a typed sentence, with a hand that can move a block mid-plan and a planner that carries on without being told. |
+| [`zeos-stretch`](zeos-stretch) | One robot shared by four behaviours: clearing a table, a coffee, its delivery and a smoke alarm. The body is a lease the kernel moves by priority, and a simulated VLA carries out the commands. |
+
 ## Example of running a demo
 
 ```bash

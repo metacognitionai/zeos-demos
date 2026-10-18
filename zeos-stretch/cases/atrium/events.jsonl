@@ -1,0 +1,7 @@
+# The morning in the atrium, in virtual time. The VLA and the coffee machine add their
+# own events as they finish things; these are the ones that come from outside.
+#
+# 8s: somebody at desk 7 asks for a coffee while Stretch is clearing the second item off the table.
+{"at_ns": 8000000000, "pipe": "requests.coffee", "text": "desk-7"}
+# 32s: the smoke alarm, while Stretch is carrying the coffee to desk 7.
+{"at_ns": 32000000000, "pipe": "sensors.smoke", "text": "smoke near the hotplate"}
