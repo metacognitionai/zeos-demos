@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+runs/
+.env
+
+# A kept recording is the input to a replay, not the output of a run.
+!recordings/**/*.jsonl

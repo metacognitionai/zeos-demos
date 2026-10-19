@@ -1,0 +1,7 @@
+{
+  "case": "cases/atrium",
+  "machine": "claude",
+  "model": "claude-opus-5",
+  "speed": 1.0,
+  "started": "2026-10-19T09:08:03"
+}

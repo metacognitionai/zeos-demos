@@ -1,0 +1,97 @@
+# Every channel in the atrium. Ring and principal are declared here, by the site, and
+# never claimed by what arrives.
+
+# -- the body ---------------------------------------------------------------------
+#
+# One command channel, written by whichever behaviour wears the body and drained by
+# the VLA. It is a sink: what a behaviour writes here is for the world, and nothing in
+# the system reads it back.
+- name: stretch.command
+  ring: TRUSTED
+  principal: device
+  sink: true
+  capacity: 32
+
+# One reply channel per behaviour, so the VLA's answer wakes the behaviour that asked
+# and nobody else. A behaviour binds its own as `stdin`.
+- name: stretch.done.tidy
+  ring: TRUSTED
+  principal: device
+  device: true
+  capacity: 32
+- name: stretch.done.brew
+  ring: TRUSTED
+  principal: device
+  device: true
+  capacity: 32
+- name: stretch.done.deliver
+  ring: TRUSTED
+  principal: device
+  device: true
+  capacity: 32
+- name: stretch.done.smoke
+  ring: TRUSTED
+  principal: device
+  device: true
+  capacity: 32
+
+# What the VLA reports after each action. Each is an actuator, so a report latches into
+# world state; the VLA attributes each report to the behaviour whose command caused it,
+# which keeps a behaviour's own effects out of its own resume notice.
+- name: report.position
+  ring: TRUSTED
+  principal: device
+  world_object: stretch.position
+- name: report.holding
+  ring: TRUSTED
+  principal: device
+  world_object: stretch.holding
+- name: report.coffee
+  ring: TRUSTED
+  principal: device
+  world_object: coffee.location
+- name: report.hotplate
+  ring: TRUSTED
+  principal: device
+  world_object: hotplate.power
+- name: report.table
+  ring: TRUSTED
+  principal: device
+  world_object: table.items
+- name: report.basket
+  ring: TRUSTED
+  principal: device
+  world_object: basket.contents
+- name: report.tray
+  ring: TRUSTED
+  principal: device
+  world_object: tray.contents
+- name: report.machine
+  ring: TRUSTED
+  principal: device
+  world_object: coffee.machine
+
+# Where the order is to be taken, recorded by the behaviour that took it.
+- name: coffee.order.set
+  ring: TRUSTED
+  principal: peer_job
+  world_object: coffee.order
+
+# -- the atrium ---------------------------------------------------------------------
+#
+# Three device pipes, each bound to a vector: a write to one is an interrupt.
+- name: requests.coffee
+  ring: TRUSTED
+  principal: user
+  device: true
+  capacity: 16
+- name: coffee.ready
+  ring: TRUSTED
+  principal: device
+  device: true
+  capacity: 16
+- name: sensors.smoke
+  ring: TRUSTED
+  principal: device
+  device: true
+  capacity: 16

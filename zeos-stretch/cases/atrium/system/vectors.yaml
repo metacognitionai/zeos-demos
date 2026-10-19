@@ -1,0 +1,21 @@
+# The interrupt vector table. Lower is more urgent: smoke outranks the coffee, and the
+# coffee outranks tidying (80). Delivering a brewed coffee outranks starting a new one.
+
+- vector: coffee-order
+  source: requests.coffee
+  handler: brew-coffee
+  priority: 40
+  policy: queue
+
+- vector: coffee-brewed
+  source: coffee.ready
+  handler: deliver-coffee
+  priority: 30
+  policy: queue
+
+- vector: smoke-alarm
+  source: sensors.smoke
+  handler: smoke-response
+  priority: 5
+  policy: coalesce
+  deadline: 2s

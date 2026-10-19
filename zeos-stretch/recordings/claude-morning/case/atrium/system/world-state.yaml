@@ -1,0 +1,15 @@
+# The atrium as the robot finds it. Only the VLA and the coffee machine change the
+# physical objects; behaviours change them by commanding the body.
+initial:
+  stretch.position: dock
+  stretch.holding: nothing
+  # What is left on the seating-area table, and the two places it belongs.
+  table.items: apple mug banana glass orange teacup pear saucer
+  basket.contents: nothing
+  tray.contents: nothing
+  # The cup the coffee machine fills. Called `coffee` throughout, so that it is never
+  # confused with the mugs and teacups on the table.
+  coffee.location: coffee-machine
+  coffee.machine: idle
+  coffee.order: none
+  hotplate.power: "on"

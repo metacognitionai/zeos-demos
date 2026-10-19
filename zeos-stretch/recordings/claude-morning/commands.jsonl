@@ -1,0 +1,70 @@
+{"job": 1, "issued": 0, "descriptor": "tidy-atrium", "reply": "write stdout put apple basket;", "command": "write stdout put apple basket"}
+{"job": 1, "issued": 1, "descriptor": "tidy-atrium", "reply": "read stdin;", "command": "read stdin"}
+{"job": 1, "issued": 2, "descriptor": "tidy-atrium", "reply": "write stdout put mug tray;", "command": "write stdout put mug tray"}
+{"job": 2, "issued": 0, "descriptor": "brew-coffee", "reply": "write tools desk-7;", "command": "write tools desk-7"}
+{"job": 2, "issued": 1, "descriptor": "brew-coffee", "reply": "write stdout navigate coffee-machine;", "command": "write stdout navigate coffee-machine"}
+{"job": 2, "issued": 2, "descriptor": "brew-coffee", "reply": "read stdin;", "command": "read stdin"}
+{"job": 2, "issued": 3, "descriptor": "brew-coffee", "reply": "write stdout brew;", "command": "write stdout brew"}
+{"job": 2, "issued": 4, "descriptor": "brew-coffee", "reply": "read stdin;", "command": "read stdin"}
+{"job": 2, "issued": 5, "descriptor": "brew-coffee", "reply": "exit;", "command": "exit"}
+{"job": 1, "issued": 3, "descriptor": "tidy-atrium", "reply": "read stdin;", "command": "read stdin"}
+{"job": 1, "issued": 4, "descriptor": "tidy-atrium", "reply": "write stdout put banana basket;", "command": "write stdout put banana basket"}
+{"job": 1, "issued": 5, "descriptor": "tidy-atrium", "reply": "read stdin;", "command": "read stdin"}
+{"job": 3, "issued": 0, "descriptor": "smoke-response", "reply": "write stdout navigate hotplate;", "command": "write stdout navigate hotplate"}
+{"job": 3, "issued": 1, "descriptor": "smoke-response", "reply": "read stdin;", "command": "read stdin"}
+{"job": 3, "issued": 2, "descriptor": "smoke-response", "reply": "write stdout press cutoff;", "command": "write stdout press cutoff"}
+{"job": 3, "issued": 3, "descriptor": "smoke-response", "reply": "read stdin;", "command": "read stdin"}
+{"job": 3, "issued": 4, "descriptor": "smoke-response", "reply": "exit;", "command": "exit"}
+{"job": 4, "issued": 0, "descriptor": "deliver-coffee", "reply": "write stdout navigate coffee-machine;", "command": "write stdout navigate coffee-machine"}
+{"job": 4, "issued": 1, "descriptor": "deliver-coffee", "reply": "read stdin;", "command": "read stdin"}
+{"job": 4, "issued": 2, "descriptor": "deliver-coffee", "reply": "write stdout pick coffee;", "command": "write stdout pick coffee"}
+{"job": 4, "issued": 3, "descriptor": "deliver-coffee", "reply": "read stdin;", "command": "read stdin"}
+{"job": 4, "issued": 4, "descriptor": "deliver-coffee", "reply": "write stdout navigate desk-7;", "command": "write stdout navigate desk-7"}
+{"job": 4, "issued": 5, "descriptor": "deliver-coffee", "reply": "read stdin;", "command": "read stdin"}
+{"job": 5, "issued": 0, "descriptor": "smoke-response", "reply": "write stdout place coffee;", "command": "write stdout place coffee"}
+{"job": 5, "issued": 1, "descriptor": "smoke-response", "reply": "read stdin;", "command": "read stdin"}
+{"job": 5, "issued": 2, "descriptor": "smoke-response", "reply": "write stdout navigate hotplate;", "command": "write stdout navigate hotplate"}
+{"job": 5, "issued": 3, "descriptor": "smoke-response", "reply": "read stdin;", "command": "read stdin"}
+{"job": 5, "issued": 4, "descriptor": "smoke-response", "reply": "write stdout press cutoff;", "command": "write stdout press cutoff"}
+{"job": 5, "issued": 5, "descriptor": "smoke-response", "reply": "read stdin;", "command": "read stdin"}
+{"job": 5, "issued": 6, "descriptor": "smoke-response", "reply": "exit;", "command": "exit"}
+{"job": 4, "issued": 6, "descriptor": "deliver-coffee", "reply": "write stdout navigate corridor;", "command": "write stdout navigate corridor"}
+{"job": 4, "issued": 7, "descriptor": "deliver-coffee", "reply": "read stdin;", "command": "read stdin"}
+{"job": 4, "issued": 8, "descriptor": "deliver-coffee", "reply": "write stdout pick coffee;", "command": "write stdout pick coffee"}
+{"job": 4, "issued": 9, "descriptor": "deliver-coffee", "reply": "read stdin;", "command": "read stdin"}
+{"job": 4, "issued": 10, "descriptor": "deliver-coffee", "reply": "write stdout navigate desk-7;", "command": "write stdout navigate desk-7"}
+{"job": 4, "issued": 11, "descriptor": "deliver-coffee", "reply": "read stdin;", "command": "read stdin"}
+{"job": 4, "issued": 12, "descriptor": "deliver-coffee", "reply": "write stdout place coffee;", "command": "write stdout place coffee"}
+{"job": 4, "issued": 13, "descriptor": "deliver-coffee", "reply": "read stdin;", "command": "read stdin"}
+{"job": 4, "issued": 14, "descriptor": "deliver-coffee", "reply": "exit;", "command": "exit"}
+{"job": 1, "issued": 6, "descriptor": "tidy-atrium", "reply": "write stdout put glass tray;", "command": "write stdout put glass tray"}
+{"job": 1, "issued": 7, "descriptor": "tidy-atrium", "reply": "read stdin;", "command": "read stdin"}
+{"job": 1, "issued": 8, "descriptor": "tidy-atrium", "reply": "write stdout put orange basket;", "command": "write stdout put orange basket"}
+{"job": 1, "issued": 9, "descriptor": "tidy-atrium", "reply": "read stdin;", "command": "read stdin"}
+{"job": 6, "issued": 0, "descriptor": "smoke-response", "reply": "write stdout navigate hotplate;", "command": "write stdout navigate hotplate"}
+{"job": 6, "issued": 1, "descriptor": "smoke-response", "reply": "read stdin;", "command": "read stdin"}
+{"job": 6, "issued": 2, "descriptor": "smoke-response", "reply": "write stdout press cutoff;", "command": "write stdout press cutoff"}
+{"job": 6, "issued": 3, "descriptor": "smoke-response", "reply": "read stdin;", "command": "read stdin"}
+{"job": 6, "issued": 4, "descriptor": "smoke-response", "reply": "exit;", "command": "exit"}
+{"job": 1, "issued": 10, "descriptor": "tidy-atrium", "reply": "write stdout put teacup tray;", "command": "write stdout put teacup tray"}
+{"job": 1, "issued": 11, "descriptor": "tidy-atrium", "reply": "read stdin;", "command": "read stdin"}
+{"job": 1, "issued": 12, "descriptor": "tidy-atrium", "reply": "write stdout put pear basket;", "command": "write stdout put pear basket"}
+{"job": 7, "issued": 0, "descriptor": "brew-coffee", "reply": "write tools desk-5;", "command": "write tools desk-5"}
+{"job": 7, "issued": 1, "descriptor": "brew-coffee", "reply": "write stdout navigate coffee-machine;", "command": "write stdout navigate coffee-machine"}
+{"job": 7, "issued": 2, "descriptor": "brew-coffee", "reply": "read stdin;", "command": "read stdin"}
+{"job": 7, "issued": 3, "descriptor": "brew-coffee", "reply": "write stdout brew;", "command": "write stdout brew"}
+{"job": 7, "issued": 4, "descriptor": "brew-coffee", "reply": "read stdin;", "command": "read stdin"}
+{"job": 7, "issued": 5, "descriptor": "brew-coffee", "reply": "exit;", "command": "exit"}
+{"job": 1, "issued": 13, "descriptor": "tidy-atrium", "reply": "read stdin;", "command": "read stdin"}
+{"job": 1, "issued": 14, "descriptor": "tidy-atrium", "reply": "write stdout put saucer tray;", "command": "write stdout put saucer tray"}
+{"job": 1, "issued": 15, "descriptor": "tidy-atrium", "reply": "read stdin;", "command": "read stdin"}
+{"job": 8, "issued": 0, "descriptor": "deliver-coffee", "reply": "write stdout navigate coffee-machine;", "command": "write stdout navigate coffee-machine"}
+{"job": 8, "issued": 1, "descriptor": "deliver-coffee", "reply": "read stdin;", "command": "read stdin"}
+{"job": 8, "issued": 2, "descriptor": "deliver-coffee", "reply": "write stdout pick coffee;", "command": "write stdout pick coffee"}
+{"job": 8, "issued": 3, "descriptor": "deliver-coffee", "reply": "read stdin;", "command": "read stdin"}
+{"job": 8, "issued": 4, "descriptor": "deliver-coffee", "reply": "write stdout navigate desk-5;", "command": "write stdout navigate desk-5"}
+{"job": 8, "issued": 5, "descriptor": "deliver-coffee", "reply": "read stdin;", "command": "read stdin"}
+{"job": 8, "issued": 6, "descriptor": "deliver-coffee", "reply": "write stdout place coffee;", "command": "write stdout place coffee"}
+{"job": 8, "issued": 7, "descriptor": "deliver-coffee", "reply": "read stdin;", "command": "read stdin"}
+{"job": 8, "issued": 8, "descriptor": "deliver-coffee", "reply": "exit;", "command": "exit"}
+{"job": 1, "issued": 16, "descriptor": "tidy-atrium", "reply": "exit;", "command": "exit"}

@@ -1,0 +1,3 @@
+# Only the background goal starts at boot. Every other behaviour is started by an
+# interrupt: a coffee order, the coffee machine finishing, or the smoke alarm.
+- tidy-atrium
