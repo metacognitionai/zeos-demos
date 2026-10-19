@@ -23,11 +23,11 @@ dev = [
 ]
 
 [tool.uv.sources]
-# LOCAL TEST ONLY: the kernel checkout beside this repository, on the branch carrying
-# the kernel work this demo needs (reports attributed to the job whose command caused
-# them, and every job.state transition journalled). Before this is committed it becomes
-# the git source the other demos use, once that work is on zeos main.
-zeos = { path = "../../zeos-internal", editable = true }
+# A git source, not a release: this demo needs kernel work -- reports attributed to the
+# job whose command caused them, every job.state transition journalled -- that has
+# landed on main but is not in a published wheel yet. The lockfile pins the commit
+# `uv lock` resolved; `uv lock --upgrade-package zeos` moves it.
+zeos = { git = "https://github.com/metacognitionai/zeos", branch = "main" }
 
 [build-system]
 requires = ["hatchling"]
