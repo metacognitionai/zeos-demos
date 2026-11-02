@@ -1,0 +1,7 @@
+# The farm as the kernel knows it. What is really in each paddock is the simulator's
+# (cases/farm/farm.yaml); a behaviour learns it only by looking.
+initial:
+  kestrel.position: shed
+  kestrel.altitude: "0"
+  # How many head the farmer expects in each paddock.
+  herd.expected: house=12 north-flat=40 ridge=25 creek=30 dam=18 back-block=22

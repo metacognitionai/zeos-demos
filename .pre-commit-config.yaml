@@ -24,6 +24,7 @@ repos:
     rev: 63c8f8312b7559622c0d82815639671ae42132ac  # v2.4.1
     hooks:
       - id: codespell
-        # Australian English, per AGENTS.md: these are spellings, not typos.
-        args: [--ignore-words-list=fulfilment,unparseable,licence,behaviour,colour,favour,honour,recognise,realise,organise,summarise,initialise,serialise,analyse,centre,catalogue,programme]
+        # Australian English, per AGENTS.md, and farm words (a water trough): these are
+        # spellings, not typos. PX4 SITL (software in the loop) is a name, not a typo.
+        args: ["--ignore-words-list=trough,sitl,fulfilment,unparseable,licence,behaviour,colour,favour,honour,recognise,realise,organise,summarise,initialise,serialise,analyse,centre,catalogue,programme"]
         exclude: uv\.lock$

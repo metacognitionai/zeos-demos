@@ -1,0 +1,3 @@
+# Nothing starts at boot: the patrol is started by dawn, and every other behaviour by
+# an interrupt or by the farmer.
+[]

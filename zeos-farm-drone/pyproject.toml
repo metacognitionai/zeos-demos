@@ -1,0 +1,51 @@
+[project]
+name = "zeos-farm-drone"
+version = "0.1.0"
+description = "Two drones inspecting a cattle farm: five ZEOS behaviours, a flight-rules gate, and the farmer's voice"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pyyaml>=6.0",
+    "zeos",
+]
+
+[project.optional-dependencies]
+# The Claude seat only. The rules and the tapes need neither a key nor a network, which
+# is what lets the demonstration run and be tested without either.
+claude = ["anthropic>=1.0"]
+# The PX4 drone only (--device px4): MAVSDK's native binding, whose API is v4's.
+px4 = ["mavsdk>=4.0,<5"]
+
+[project.scripts]
+zeos-farm-drone = "zeos_farm_drone.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[tool.uv.sources]
+# A git source, not a release: this demo needs kernel work -- reports attributed to the
+# job whose command caused them -- that has landed on main but is not in a published
+# wheel yet. The lockfile pins the commit `uv lock` resolved; `uv lock --upgrade-package
+# zeos` moves it.
+zeos = { git = "https://github.com/metacognitionai/zeos", branch = "main" }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/zeos_farm_drone"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

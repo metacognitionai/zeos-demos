@@ -1,0 +1,409 @@
+<title>Farm Drone Replay</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=Public+Sans:wght@400;600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a farm map with the kernel's narration under it, and the drone, the farmer's
+   phone, the flight rules and the behaviours beside it; a player bar above both. */
+:root {
+  --bg: #eef1ec; --surface: #ffffff; --sunk: #f4f6f1; --ink: #1d2620; --muted: #5d6b62;
+  --line: #d4dccf; --grass: #e4efd9; --grass-edge: #9cbf86; --fence: #6f8f5a;
+  --kestrel: #0e7f81; --kestrel-soft: #d6eeee; --accent: #6b4bb0; --accent-soft: #ece5f8;
+  --alarm: #c63a26; --alarm-soft: #fbe3de; --water: #2f7fc1; --warn: #9a6200; --warn-soft: #fbefd6;
+  --ok: #3a8435; --road: #cfd3d6;
+  --display: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --sans: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111612; --surface: #19201b; --sunk: #141a16; --ink: #e3ebe5; --muted: #93a39a;
+    --line: #2b362f; --grass: #1d2a1f; --grass-edge: #3f6236; --fence: #7fae68;
+    --kestrel: #3cc4c6; --kestrel-soft: #173335; --accent: #b59cf0; --accent-soft: #2a2140;
+    --alarm: #ff6b55; --alarm-soft: #3a1f1b; --water: #6fb3ea; --warn: #e8b24e; --warn-soft: #332812;
+    --ok: #7dcb72; --road: #2c3236; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111612; --surface: #19201b; --sunk: #141a16; --ink: #e3ebe5; --muted: #93a39a;
+  --line: #2b362f; --grass: #1d2a1f; --grass-edge: #3f6236; --fence: #7fae68;
+  --kestrel: #3cc4c6; --kestrel-soft: #173335; --accent: #b59cf0; --accent-soft: #2a2140;
+  --alarm: #ff6b55; --alarm-soft: #3a1f1b; --water: #6fb3ea; --warn: #e8b24e; --warn-soft: #332812;
+  --ok: #7dcb72; --road: #2c3236; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 14px/1.5 var(--sans);
+  padding-block: 0 32px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1380px; margin: 0 auto; display: grid; gap: 16px; }
+header { display: grid; gap: 4px; padding-top: 20px; }
+h1 { font: 700 30px/1.1 var(--display); margin: 0; letter-spacing: .01em; text-wrap: balance; }
+.lede { color: var(--muted); max-width: 72ch; margin: 0; }
+.eyebrow { font: 600 11px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--kestrel); }
+
+.player { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.player button { font: 600 13px var(--sans); border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 7px 12px; cursor: pointer; }
+.player button:hover { border-color: var(--kestrel); }
+.player button:focus-visible, .player input:focus-visible, .player select:focus-visible { outline: 2px solid var(--kestrel); outline-offset: 2px; }
+#play { background: var(--kestrel); border-color: var(--kestrel); color: var(--surface); min-width: 84px; }
+.clock { font: 600 14px var(--mono); font-variant-numeric: tabular-nums; min-width: 92px; }
+#scrub { flex: 1 1 260px; min-width: 0; accent-color: var(--kestrel); }
+select { font: 13px var(--sans); padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.chapters { display: flex; flex-wrap: wrap; gap: 6px; flex-basis: 100%; align-items: center; }
+.chapters .label { font-size: 12px; color: var(--muted); margin-right: 2px; }
+.chapters button { padding: 4px 10px; font-weight: 600; font-size: 12.5px; }
+.chapters button.here { border-color: var(--kestrel); color: var(--kestrel); }
+
+main { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; }
+.stack { display: grid; gap: 16px; align-content: start; min-width: 0; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; min-width: 0; }
+.card h2 { margin: 0 0 10px; font: 700 13px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.map svg { display: block; width: 100%; height: auto; }
+.map.fire { border-color: var(--alarm); box-shadow: 0 0 0 3px var(--alarm-soft); }
+svg text { fill: var(--ink); font-family: var(--sans); }
+svg .muted { fill: var(--muted); }
+
+.drone { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 12px; align-items: start; }
+.avatar { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; font: 700 12px var(--sans); color: var(--surface); background: var(--kestrel); }
+.bubble { background: var(--sunk); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-width: 0; }
+.bubble .who { font-size: 12px; color: var(--muted); }
+.bubble .now { font: 600 16px/1.35 var(--sans); }
+.bubble .why { color: var(--muted); font-size: 12.5px; }
+.bar { height: 5px; background: var(--line); border-radius: 99px; overflow: hidden; margin-top: 8px; }
+.bar > div { height: 100%; width: 0; background: var(--kestrel); }
+.cmd { font: 11.5px var(--mono); color: var(--muted); margin-top: 4px; overflow-wrap: anywhere; }
+
+.phone { display: grid; gap: 8px; max-height: 430px; overflow: auto; }
+.alert { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 8px; background: var(--sunk); }
+.alert .title { font-weight: 600; }
+.alert .meta { font: 11.5px var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+.reply { font: 12px var(--mono); color: var(--muted); padding: 2px 4px; overflow-wrap: anywhere; }
+.empty { color: var(--muted); font-size: 13px; }
+.rulings { font: 12px/1.6 var(--mono); max-height: 170px; overflow: auto; }
+.rulings .no { color: var(--alarm); font-weight: 600; }
+.rulings .yes { color: var(--muted); }
+.note { font-size: 12.5px; color: var(--muted); margin: 0 0 6px; }
+
+table.jobs { width: 100%; border-collapse: collapse; }
+table.jobs td { padding: 7px 4px; border-top: 1px solid var(--line); vertical-align: top; }
+table.jobs tr:first-child td { border-top: 0; }
+.jobname { font-weight: 600; }
+.trig { font: 11.5px var(--mono); color: var(--muted); }
+.prio { font: 600 12px var(--mono); color: var(--muted); text-align: right; white-space: nowrap; }
+.pill { display: inline-block; font: 600 11.5px var(--sans); padding: 2px 9px; border-radius: 99px; background: var(--sunk); color: var(--muted); border: 1px solid var(--line); white-space: nowrap; }
+.pill.running { background: var(--kestrel-soft); color: var(--kestrel); border-color: transparent; }
+.pill.waiting, .pill.ready { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.pill.suspended { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.chip { display: inline-block; margin-left: 6px; font: 600 11px var(--sans); color: var(--surface); background: var(--kestrel); border-radius: 6px; padding: 1px 6px; }
+.notice { font: 11.5px var(--mono); color: var(--accent); margin-top: 3px; overflow-wrap: anywhere; }
+
+.lines { font: 12px/1.6 var(--mono); max-height: 340px; overflow: auto; background: var(--sunk); border-radius: 8px; padding: 8px 12px; }
+.lines div { white-space: pre-wrap; overflow-wrap: anywhere; }
+.lines .t { color: var(--muted); font-variant-numeric: tabular-nums; }
+.k-interrupt, .k-gate, .k-fault { color: var(--alarm); }
+.k-resume { color: var(--accent); }
+.k-drone { color: var(--kestrel); }
+.k-farm, .k-farmer { color: var(--warn); }
+.k-command { color: var(--muted); }
+.story { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+.story .ok { color: var(--ok); } .story .no { color: var(--alarm); }
+footer { color: var(--muted); font-size: 12.5px; max-width: 90ch; }
+@media (max-width: 980px) { main { grid-template-columns: minmax(0, 1fr); } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">ZEOS · recorded session</div>
+    <h1>One farm drone, five behaviours, flown by Claude</h1>
+    <p class="lede">A morning on a cattle farm, recorded from the live demo and played back here exactly as it ran. Every drone command was chosen by Claude; the farm's events were clicked on a schedule: a vehicle, straying cows, a leaking trough, a lost toolbox, a fire alert, a flat battery. The ZEOS kernel decided which behaviour flew the drone and when, and checked every command against the flight rules.</p>
+  </header>
+
+  <section class="player" aria-label="Playback">
+    <button id="play" type="button">Play</button>
+    <span id="clock" class="clock">t = 0.0 s</span>
+    <input id="scrub" type="range" min="0" max="100" step="0.1" value="0" aria-label="Farm time">
+    <label for="speed" class="note" style="margin:0">speed</label>
+    <select id="speed" aria-label="Playback speed"><option value="1">1×</option><option value="2" selected>2×</option><option value="4">4×</option><option value="8">8×</option></select>
+    <div class="chapters" id="chapters"><span class="label">Jump to:</span></div>
+  </section>
+
+  <main>
+    <div class="stack">
+      <section class="card map" id="mapcard" aria-label="Map of the farm">
+        <h2>The farm</h2>
+        <svg id="map" viewBox="0 0 900 520" role="img" aria-label="The paddocks, the drone and what is in each paddock"></svg>
+      </section>
+      <section class="card">
+        <h2>What the kernel and the drone did</h2>
+        <div id="lines" class="lines"></div>
+      </section>
+    </div>
+    <div class="stack">
+      <section class="card" aria-live="polite">
+        <h2>The drone</h2>
+        <div id="drones"></div>
+      </section>
+      <section class="card">
+        <h2>The farmer's phone</h2>
+        <div id="phone" class="phone"></div>
+      </section>
+      <section class="card">
+        <h2>Flight rules</h2>
+        <p class="note">Every command passes this gate before the drone moves: nothing off the property, nothing above 120 m.</p>
+        <div id="rulings" class="rulings"></div>
+      </section>
+      <section class="card">
+        <h2>Behaviours</h2>
+        <table class="jobs"><tbody id="jobs"></tbody></table>
+      </section>
+      <section class="card" id="storycard" hidden>
+        <h2>How the morning came out</h2>
+        <ul id="story" class="story"></ul>
+      </section>
+    </div>
+  </main>
+
+  <footer id="footer"></footer>
+</div>
+
+<script id="data" type="application/json">/*__DATA__*/null</script>
+<script>
+const DATA = JSON.parse(document.getElementById("data").textContent);
+const KM = {
+  "shed": [1.0, 1.6], "house": [1.0, 1.0], "north-flat": [1.0, 0.0], "ridge": [2.0, 0.0],
+  "creek": [2.0, 1.0], "dam": [3.0, 1.0], "back-block": [3.0, 0.0],
+  "boundary-west": [0.3, 0.5], "boundary-east": [3.7, 0.5], "road": [-0.4, 0.5], "neighbour": [4.4, 0.5],
+};
+const at = p => { const [x, y] = KM[p] || KM.shed; return [75 + (x + 0.4) * 150, 120 + y * 210]; };
+const PADDOCKS = ["north-flat", "ridge", "back-block", "house", "creek", "dam"];
+const DIR = { "north": [0, -1], "north-east": [1, -1], "east": [1, 0], "south-east": [1, 1], "south": [0, 1], "south-west": [-1, 1], "west": [-1, 0], "north-west": [-1, -1] };
+const $ = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+const escapeHtml = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const nice = p => p.replace(/-/g, " ");
+
+const map = $("map");
+const layers = {};
+(() => {
+  map.append(el("rect", { x: 0, y: 0, width: 900, height: 520, rx: 10, fill: "var(--sunk)" }));
+  map.append(el("rect", { x: 25, y: 10, width: 70, height: 500, fill: "var(--road)" }));
+  map.append(el("text", { x: 60, y: 30, "text-anchor": "middle", "font-size": 12, class: "muted" }, "road"));
+  map.append(el("rect", { x: 760, y: 10, width: 120, height: 500, rx: 8, fill: "none", stroke: "var(--line)", "stroke-dasharray": "5 5" }));
+  map.append(el("text", { x: 820, y: 30, "text-anchor": "middle", "font-size": 12, class: "muted" }, "neighbour"));
+  map.append(el("rect", { x: 180, y: 12, width: 510, height: 496, rx: 14, fill: "none", stroke: "var(--fence)", "stroke-width": 3 }));
+  map.append(el("text", { x: 435, y: 506, "text-anchor": "middle", "font-size": 11, class: "muted" }, "farm boundary"));
+  for (const p of PADDOCKS) {
+    const [x, y] = at(p);
+    const g = el("g", { id: `pad-${p}` });
+    g.append(el("rect", { x: x - 68, y: y - 88, width: 136, height: 176, rx: 10, fill: "var(--grass)", stroke: "var(--grass-edge)" }));
+    g.append(el("text", { x: x - 58, y: y - 68, "font-size": 13, "font-weight": 700 }, nice(p)));
+    g.append(el("text", { x: x - 58, y: y - 46, "font-size": 12, class: "head" }, ""));
+    g.append(el("text", { x: x - 58, y: y - 30, "font-size": 11, class: "muted record" }, ""));
+    g.append(el("rect", { x: x + 38, y: y + 30, width: 20, height: 46, rx: 3, fill: "var(--surface)", stroke: "var(--water)" }));
+    g.append(el("rect", { x: x + 40, y: y + 74, width: 16, height: 0, rx: 2, class: "water", fill: "var(--water)" }));
+    g.append(el("text", { x: x + 48, y: y + 24, "text-anchor": "middle", "font-size": 10, class: "trough" }, ""));
+    map.append(g);
+  }
+  const [sx, sy] = at("shed");
+  map.append(el("rect", { x: sx - 34, y: sy - 18, width: 68, height: 36, rx: 6, fill: "var(--surface)", stroke: "var(--line)", "stroke-width": 2 }));
+  map.append(el("text", { x: sx, y: sy + 32, "text-anchor": "middle", "font-size": 11, class: "muted" }, "shed"));
+  for (const name of ["paths", "things", "fire", "drones"]) { layers[name] = el("g", {}); map.append(layers[name]); }
+})();
+
+function lerp(a, b, t) { return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]; }
+
+function renderMap(s) {
+  const f = s.farm;
+  for (const p of PADDOCKS) {
+    const g = $(`pad-${p}`), d = f.paddocks[p], [, y] = at(p);
+    const off = d.head !== d.expected;
+    g.querySelector(".head").textContent = `${d.head} head${d.calves ? ` · ${d.calves} calves` : ""}${d.strays ? ` · ${d.strays} stray` : ""}`;
+    g.querySelector(".head").setAttribute("fill", off ? "var(--warn)" : "var(--ink)");
+    g.querySelector(".head").setAttribute("style", `fill: ${off ? "var(--warn)" : "var(--ink)"}`);
+    g.querySelector(".record").textContent = `farmer's record: ${d.expected}`;
+    const h = Math.round(42 * d.trough / 100), w = g.querySelector(".water");
+    w.setAttribute("y", y + 74 - h); w.setAttribute("height", h);
+    w.setAttribute("fill", d.trough < 30 ? "var(--alarm)" : "var(--water)");
+    g.querySelector(".trough").textContent = `${d.trough}%`;
+  }
+  const things = layers.things; things.replaceChildren();
+  const seen = {};
+  for (const v of f.vehicles) {
+    const [x, y] = at(v.place), k = (seen[v.place] = (seen[v.place] || 0) + 1) - 1;
+    const vx = x - 62 + k * 6, vy = y + 6 + k * 24;
+    const colour = v.name.startsWith("red") ? "#c0392b" : v.name.startsWith("grey") ? "#7b8794" : "#f4f4f2";
+    things.append(el("rect", { x: vx, y: vy, width: 40, height: 18, rx: 5, fill: colour, stroke: "var(--ink)", "stroke-width": 1.2 }));
+    things.append(el("text", { x: vx + 20, y: vy + 31, "text-anchor": "middle", "font-size": 10 }, `${nice(v.name)}${v.heading.startsWith("towards") ? " →" : ""}`));
+  }
+  for (const [item, place] of Object.entries(f.items)) {
+    const [x, y] = at(place);
+    things.append(el("circle", { cx: x - 40, cy: y + 66, r: 7, fill: "var(--warn)" }));
+    things.append(el("text", { x: x - 28, y: y + 70, "font-size": 10 }, nice(item)));
+  }
+  const fire = layers.fire; fire.replaceChildren();
+  $("mapcard").classList.toggle("fire", !!f.fire);
+  if (f.fire) {
+    const [dx, dy] = DIR[f.fire.direction] || [0, -1];
+    const cx = 450 + dx * 380, cy = 260 + dy * 215;
+    for (const [ox, oy, r] of [[-14, 4, 16], [8, -6, 20], [26, 6, 14]]) fire.append(el("circle", { cx: cx + ox, cy: cy + oy, r, fill: "var(--muted)", opacity: .4 }));
+    const anchor = dx < 0 ? "start" : dx > 0 ? "end" : "middle";
+    const lx = dx < 0 ? 8 : dx > 0 ? 892 : cx, ly = dy > 0 ? cy - 28 : cy + 40;
+    fire.append(el("rect", { x: anchor === "start" ? lx - 4 : anchor === "end" ? lx - 176 : lx - 90, y: ly - 14, width: 180, height: 20, rx: 4, fill: "var(--alarm-soft)" }));
+    fire.append(el("text", { x: lx, y: ly, "text-anchor": anchor, "font-size": 12, "font-weight": 700, style: "fill: var(--alarm)" }, `SMOKE ${f.fire.km} km ${f.fire.direction.toUpperCase()}`));
+  }
+  const paths = layers.paths; paths.replaceChildren();
+  const drones = layers.drones; drones.replaceChildren();
+  for (const d of s.drones) {
+    let [x, y] = at(d.position);
+    if (d.doing && d.doing.origin !== d.doing.target) {
+      const a = at(d.doing.origin), b = at(d.doing.target);
+      paths.append(el("line", { x1: a[0], y1: a[1], x2: b[0], y2: b[1], stroke: "var(--kestrel)", "stroke-width": 2, "stroke-dasharray": "6 5", opacity: .7 }));
+      [x, y] = lerp(a, b, d.doing.progress);
+    }
+    const g = el("g", { transform: `translate(${x} ${y})` });
+    for (const [ax, ay] of [[-11, -11], [11, -11], [-11, 11], [11, 11]]) g.append(el("circle", { cx: ax, cy: ay, r: 6, fill: "var(--kestrel-soft)", stroke: "var(--kestrel)", "stroke-width": 1.5 }));
+    g.append(el("rect", { x: -8, y: -8, width: 16, height: 16, rx: 4, fill: "var(--kestrel)" }));
+    g.append(el("text", { x: 0, y: 30, "text-anchor": "middle", "font-size": 11, "font-weight": 700 }, d.name));
+    g.append(el("text", { x: 0, y: 43, "text-anchor": "middle", "font-size": 10, class: "muted" }, `${d.altitude} m`));
+    drones.append(g);
+  }
+}
+
+function renderDrones(s) {
+  $("drones").innerHTML = s.drones.map(d => {
+    const doing = d.doing;
+    let now, why = "";
+    if (doing) { now = doing.says; why = DATA.because[doing.behaviour] || ""; }
+    else if (d.pilot) { now = "Waiting for the next command."; why = DATA.because[d.pilot] || ""; }
+    else { now = d.position === "shed" && !d.altitude ? "In the shed." : `Hovering over the ${nice(d.position)}.`; }
+    const pct = doing ? Math.round(doing.progress * 100) : 0;
+    return `<div class="drone"><div class="avatar">${d.name.slice(0, 3)}</div>
+      <div class="bubble"><div class="who">${d.name} · ${DATA.drone_sensors.join(", ")}${d.pilot ? ` · flown by <b>${d.pilot}</b>` : ""}</div>
+      <div class="now">${escapeHtml(now)}</div><div class="why">${escapeHtml(why)}</div>
+      <div class="bar"><div style="width:${pct}%"></div></div>
+      <div class="cmd">${doing ? `${doing.behaviour} » ${escapeHtml(doing.command)}${d.queued ? `  (${d.queued} queued)` : ""}` : ""}</div></div></div>`;
+  }).join("");
+}
+
+const KIND = { vehicle: "Vehicle", livestock: "Livestock", trough: "Trough", fire: "Fire", item: "Found" };
+const KIND_COLOUR = { vehicle: "var(--muted)", livestock: "var(--ok)", trough: "var(--water)", fire: "var(--alarm)", item: "var(--warn)" };
+function thumb(a) {
+  const c = KIND_COLOUR[a.kind] || "var(--muted)";
+  return `<svg viewBox="0 0 64 48" width="64" height="48" aria-hidden="true"><rect width="64" height="48" rx="6" style="fill:var(--surface)"/><rect x="1" y="1" width="62" height="46" rx="5" fill="none" style="stroke:${c}"/><text x="32" y="29" text-anchor="middle" font-size="11" font-weight="700" style="fill:${c}">${a.photo ? a.photo : "no photo"}</text></svg>`;
+}
+function renderPhone(s) {
+  const alerts = [...s.phone].reverse(), replies = [...s.replies].reverse();
+  if (!alerts.length && !replies.length) { $("phone").innerHTML = '<div class="empty">Nothing yet.</div>'; return; }
+  $("phone").innerHTML = replies.map(r => `<div class="reply">${r.t.toFixed(1)}s  farm: ${escapeHtml(r.text)}</div>`).join("")
+    + alerts.map(a => `<div class="alert"><div>${thumb(a)}</div><div>
+      <div class="title">${KIND[a.kind] || a.kind} · ${escapeHtml(nice(a.where))}</div>
+      <div>${escapeHtml(a.detail)}</div>
+      <div class="meta">${a.t.toFixed(1)}s${a.subject ? ` · ${escapeHtml(a.drone)}: ${escapeHtml(a.subject)}` : ""}</div></div></div>`).join("");
+}
+
+function renderRulings(s) {
+  const rows = [...s.rulings].reverse();
+  $("rulings").innerHTML = rows.length ? rows.map(r => r.allowed
+    ? `<div class="yes">${r.t.toFixed(1).padStart(6)}s  allow  ${escapeHtml(r.behaviour)}: ${escapeHtml(r.command)}</div>`
+    : `<div class="no">${r.t.toFixed(1).padStart(6)}s  VETO   ${escapeHtml(r.behaviour)}: ${escapeHtml(r.command)} (${escapeHtml(r.reason)})</div>`).join("")
+    : '<div class="empty">No commands yet.</div>';
+}
+
+function renderJobs(s) {
+  $("jobs").innerHTML = s.behaviours.map(b => {
+    const notice = b.notice ? `<div class="notice">last told: ${escapeHtml(b.notice.replace(/<\/?RESUME>/g, "").trim())}</div>` : "";
+    const chip = b.drone ? `<span class="chip">flying ${b.drone}</span>` : "";
+    return `<tr><td><div class="jobname">${b.name}${chip}</div><div class="trig">started by ${escapeHtml(b.trigger)}</div>${notice}</td>
+      <td class="prio">prio ${b.priority}</td><td style="text-align:right"><span class="pill ${b.state}">${b.state}</span></td></tr>`;
+  }).join("");
+}
+
+let pinned = true;
+$("lines").addEventListener("scroll", e => { const l = e.target; pinned = l.scrollTop + l.clientHeight >= l.scrollHeight - 8; });
+function renderLog(s) {
+  const box = $("lines");
+  box.innerHTML = s.log.map(l => `<div class="k-${l.kind}"><span class="t">${l.t.toFixed(1).padStart(6)}s</span>  ${escapeHtml(l.text)}</div>`).join("");
+  if (pinned) box.scrollTop = box.scrollHeight;
+}
+
+// -- the player ------------------------------------------------------------------
+
+const frames = DATA.frames, END = DATA.end;
+function frameAt(t) {
+  let lo = 0, hi = frames.length - 1;
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (frames[mid].t <= t) lo = mid; else hi = mid - 1; }
+  return lo;
+}
+function snapshot(i) {
+  const f = frames[i], [nl, np, nr, nu] = f.n;
+  return {
+    clock: f.t, drones: f.d, farm: DATA.farms[f.f], behaviours: DATA.tables[f.b],
+    log: DATA.lines.slice(Math.max(0, nl - 150), nl), phone: DATA.phone.slice(0, np),
+    replies: DATA.replies.slice(0, nr), rulings: DATA.rulings.slice(Math.max(0, nu - 40), nu),
+  };
+}
+
+let t = 0, playing = false, shown = -1, lastTick = 0;
+const scrub = $("scrub");
+scrub.max = String(END);
+function show(force) {
+  const i = frameAt(t);
+  $("clock").textContent = `t = ${t.toFixed(1)} s`;
+  scrub.value = String(t);
+  for (const b of document.querySelectorAll("#chapters button")) b.classList.toggle("here", t >= Number(b.dataset.t) && t < Number(b.dataset.until));
+  if (i === shown && !force) return;
+  shown = i;
+  const s = snapshot(i);
+  renderMap(s); renderDrones(s); renderPhone(s); renderRulings(s); renderJobs(s); renderLog(s);
+  const done = t >= END;
+  $("storycard").hidden = !done;
+  if (done) $("story").innerHTML = DATA.story.map(v => `<li class="${v.held ? "ok" : "no"}">${v.held ? "✓" : "✗"} ${escapeHtml(v.claim)}</li>`).join("");
+}
+function setPlaying(on) {
+  playing = on;
+  $("play").textContent = on ? "Pause" : (t >= END ? "Replay" : "Play");
+  lastTick = performance.now();
+  if (on) requestAnimationFrame(tick);
+}
+function tick(now) {
+  if (!playing) return;
+  t = Math.min(END, t + (now - lastTick) / 1000 * Number($("speed").value));
+  lastTick = now;
+  show(false);
+  if (t >= END) { setPlaying(false); return; }
+  requestAnimationFrame(tick);
+}
+$("play").addEventListener("click", () => {
+  if (!playing && t >= END) { t = 0; pinned = true; }
+  setPlaying(!playing);
+});
+scrub.addEventListener("input", () => { t = Number(scrub.value); pinned = true; show(false); });
+
+const chapters = [...DATA.chapters, { label: "How it came out", t: END }];
+chapters.forEach((c, k) => {
+  const b = document.createElement("button");
+  b.type = "button"; b.textContent = c.label;
+  b.dataset.t = String(c.t); b.dataset.until = String(k + 1 < chapters.length ? chapters[k + 1].t : END + 1);
+  b.addEventListener("click", () => { t = c.t; pinned = true; show(true); if (t < END) setPlaying(true); else setPlaying(false); });
+  $("chapters").append(b);
+});
+
+const m = DATA.meta;
+$("footer").textContent = `Recorded ${m.started.replace("T", " ")} with ${m.model} choosing every command, one API call each. `
+  + "Vision and flight are simulated as perfect: an observation returns the facts and a flight always arrives, so what this shows is the control. "
+  + "The page replays the recorded session; the kernel's journal for it replays byte for byte.";
+
+// Open at the end, with the morning judged, so the first view shows what happened.
+t = END; show(true);
+setPlaying(false);
+</script>

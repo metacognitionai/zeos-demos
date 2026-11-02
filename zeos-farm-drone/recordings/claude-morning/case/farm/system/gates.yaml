@@ -1,0 +1,9 @@
+# Every command to a drone is held until the flight-rules guard answers it. The rules
+# are the farm's and CASA's, not any behaviour's: nothing flies off the property, and
+# nothing climbs above 120 m.
+- pipe: drone.command
+  descriptor: flight-rules
+  requests: gates.flight-rules.requests
+  verdicts: gates.flight-rules.verdicts
+  on_gate_failure: veto
+  timeout_ticks: 400

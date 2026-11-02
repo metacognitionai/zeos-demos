@@ -1,0 +1,39 @@
+# The interrupt vector table. Lower is more urgent: a flat battery outranks everything,
+# a fire outranks a vehicle, a vehicle outranks the herd, and all of them outrank the
+# patrol (80).
+
+- vector: battery-low
+  source: alerts.battery
+  handler: battery-return
+  priority: 5
+  policy: coalesce
+
+- vector: dawn
+  source: clock.dawn
+  handler: patrol
+  priority: 80
+  policy: coalesce
+
+- vector: fire-alert
+  source: alerts.fire
+  handler: fire-watch
+  priority: 15
+  policy: coalesce
+
+- vector: vehicle-sighted
+  source: findings.vehicle
+  handler: vehicle-check
+  priority: 20
+  policy: queue
+
+- vector: herd-mismatch
+  source: findings.livestock
+  handler: livestock-check
+  priority: 30
+  policy: queue
+
+- vector: find-request
+  source: requests.find
+  handler: find-item
+  priority: 40
+  policy: queue
