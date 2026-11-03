@@ -20,6 +20,14 @@ Here are some example demos:
       <video src="https://github.com/user-attachments/assets/d0dd53ca-b76f-4897-a70b-acbc09eb38b5" autoplay loop muted playsinline></video>
     </td>
   </tr>
+  <tr>
+    <td width="45%">
+      <img src="zeos-stretch/docs/atrium.gif">
+    </td>
+    <td width="45%">
+      <img src="zeos-farm-drone/docs/farm.gif">
+    </td>
+  </tr>
 </table>
 
 ## The demonstrations
