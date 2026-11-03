@@ -1,0 +1,83 @@
+{"job": 1, "issued": 0, "descriptor": "patrol", "reply": "write stdout fly house;", "command": "write stdout fly house"}
+{"job": 1, "issued": 1, "descriptor": "patrol", "reply": "read stdin;", "command": "read stdin"}
+{"job": 1, "issued": 2, "descriptor": "patrol", "reply": "write stdout observe;", "command": "write stdout observe"}
+{"job": 1, "issued": 3, "descriptor": "patrol", "reply": "read stdin;", "command": "read stdin"}
+{"job": 1, "issued": 4, "descriptor": "patrol", "reply": "write stdout fly north-flat;", "command": "write stdout fly north-flat"}
+{"job": 1, "issued": 5, "descriptor": "patrol", "reply": "read stdin;", "command": "read stdin"}
+{"job": 1, "issued": 6, "descriptor": "patrol", "reply": "write stdout observe;", "command": "write stdout observe"}
+{"job": 1, "issued": 7, "descriptor": "patrol", "reply": "read stdin;", "command": "read stdin"}
+{"job": 1, "issued": 8, "descriptor": "patrol", "reply": "write farmer kind=vehicle where=north-flat photo=none detail=white-ute-seen;", "command": "write farmer kind=vehicle where=north-flat photo=none detail=white-ute-seen"}
+{"job": 1, "issued": 9, "descriptor": "patrol", "reply": "write vehicles north-flat white-ute;", "command": "write vehicles north-flat white-ute"}
+{"job": 6, "issued": 0, "descriptor": "vehicle-check", "reply": "write stdout fly north-flat;", "command": "write stdout fly north-flat"}
+{"job": 6, "issued": 1, "descriptor": "vehicle-check", "reply": "read stdin;", "command": "read stdin"}
+{"job": 6, "issued": 2, "descriptor": "vehicle-check", "reply": "write stdout zoom vehicle;", "command": "write stdout zoom vehicle"}
+{"job": 6, "issued": 3, "descriptor": "vehicle-check", "reply": "read stdin;", "command": "read stdin"}
+{"job": 6, "issued": 4, "descriptor": "vehicle-check", "reply": "write farmer kind=vehicle where=north-flat photo=p-0001 detail=white-ute-plate-XYZ123;", "command": "write farmer kind=vehicle where=north-flat photo=p-0001 detail=white-ute-plate-XYZ123"}
+{"job": 6, "issued": 5, "descriptor": "vehicle-check", "reply": "exit;", "command": "exit"}
+{"job": 1, "issued": 10, "descriptor": "patrol", "reply": "write stdout fly ridge; read stdin;", "command": "write stdout fly ridge"}
+{"job": 1, "issued": 11, "descriptor": "patrol", "reply": "read stdin;", "command": "read stdin"}
+{"job": 1, "issued": 12, "descriptor": "patrol", "reply": "write stdout observe;", "command": "write stdout observe"}
+{"job": 1, "issued": 13, "descriptor": "patrol", "reply": "read stdin;", "command": "read stdin"}
+{"job": 1, "issued": 14, "descriptor": "patrol", "reply": "write farmer kind=trough where=ridge photo=none detail=trough-at-20%;", "command": "write farmer kind=trough where=ridge photo=none detail=trough-at-20%"}
+{"job": 1, "issued": 15, "descriptor": "patrol", "reply": "write stdout fly creek;", "command": "write stdout fly creek"}
+{"job": 1, "issued": 16, "descriptor": "patrol", "reply": "read stdin;", "command": "read stdin"}
+{"job": 1, "issued": 17, "descriptor": "patrol", "reply": "write stdout observe;", "command": "write stdout observe"}
+{"job": 1, "issued": 18, "descriptor": "patrol", "reply": "read stdin;", "command": "read stdin"}
+{"job": 1, "issued": 19, "descriptor": "patrol", "reply": "write livestock creek counted=32 expected=30;", "command": "write livestock creek counted=32 expected=30"}
+{"job": 13, "issued": 0, "descriptor": "livestock-check", "reply": "write stdout fly creek;", "command": "write stdout fly creek"}
+{"job": 13, "issued": 1, "descriptor": "livestock-check", "reply": "read stdin;", "command": "read stdin"}
+{"job": 13, "issued": 2, "descriptor": "livestock-check", "reply": "write stdout zoom cattle;", "command": "write stdout zoom cattle"}
+{"job": 13, "issued": 3, "descriptor": "livestock-check", "reply": "read stdin;", "command": "read stdin"}
+{"job": 13, "issued": 4, "descriptor": "livestock-check", "reply": "write farmer kind=livestock where=creek photo=p-0002 detail=2-strays-in-herd;", "command": "write farmer kind=livestock where=creek photo=p-0002 detail=2-strays-in-herd"}
+{"job": 13, "issued": 5, "descriptor": "livestock-check", "reply": "exit;", "command": "exit"}
+{"job": 1, "issued": 20, "descriptor": "patrol", "reply": "write stdout fly dam;", "command": "write stdout fly dam"}
+{"job": 1, "issued": 21, "descriptor": "patrol", "reply": "read stdin;", "command": "read stdin"}
+{"job": 1, "issued": 22, "descriptor": "patrol", "reply": "write stdout observe;", "command": "write stdout observe"}
+{"job": 1, "issued": 23, "descriptor": "patrol", "reply": "read stdin;", "command": "read stdin"}
+{"job": 1, "issued": 24, "descriptor": "patrol", "reply": "write livestock dam counted=16 expected=18;", "command": "write livestock dam counted=16 expected=18"}
+{"job": 18, "issued": 0, "descriptor": "livestock-check", "reply": "write stdout fly dam;", "command": "write stdout fly dam"}
+{"job": 18, "issued": 1, "descriptor": "livestock-check", "reply": "read stdin;", "command": "read stdin"}
+{"job": 18, "issued": 2, "descriptor": "livestock-check", "reply": "write stdout zoom cattle;", "command": "write stdout zoom cattle"}
+{"job": 18, "issued": 3, "descriptor": "livestock-check", "reply": "read stdin;", "command": "read stdin"}
+{"job": 18, "issued": 4, "descriptor": "livestock-check", "reply": "write farmer kind=livestock where=dam photo=p-0003 detail=16-head-2-missing;", "command": "write farmer kind=livestock where=dam photo=p-0003 detail=16-head-2-missing"}
+{"job": 18, "issued": 5, "descriptor": "livestock-check", "reply": "exit;", "command": "exit"}
+{"job": 1, "issued": 25, "descriptor": "patrol", "reply": "write stdout fly back-block;", "command": "write stdout fly back-block"}
+{"job": 1, "issued": 26, "descriptor": "patrol", "reply": "read stdin;", "command": "read stdin"}
+{"job": 22, "issued": 0, "descriptor": "battery-return", "reply": "write stdout return;", "command": "write stdout return"}
+{"job": 22, "issued": 1, "descriptor": "battery-return", "reply": "read stdin;", "command": "read stdin"}
+{"job": 24, "issued": 0, "descriptor": "ask-find", "reply": "write tools item=toolbox;", "command": "write tools item=toolbox"}
+{"job": 24, "issued": 1, "descriptor": "ask-find", "reply": "exit;", "command": "exit"}
+{"job": 22, "issued": 2, "descriptor": "battery-return", "reply": "write farmer kind=battery where=shed photo=none detail=battery-12%-home-at-shed;", "command": "write farmer kind=battery where=shed photo=none detail=battery-12%-home-at-shed"}
+{"job": 22, "issued": 3, "descriptor": "battery-return", "reply": "exit;", "command": "exit"}
+{"job": 25, "issued": 0, "descriptor": "find-item", "reply": "write stdout fly house;", "command": "write stdout fly house"}
+{"job": 25, "issued": 1, "descriptor": "find-item", "reply": "read stdin;", "command": "read stdin"}
+{"job": 25, "issued": 2, "descriptor": "find-item", "reply": "write stdout search toolbox;", "command": "write stdout search toolbox"}
+{"job": 25, "issued": 3, "descriptor": "find-item", "reply": "read stdin;", "command": "read stdin"}
+{"job": 25, "issued": 4, "descriptor": "find-item", "reply": "write farmer kind=item where=house photo=p-0004 detail=toolbox-found-at-house;", "command": "write farmer kind=item where=house photo=p-0004 detail=toolbox-found-at-house"}
+{"job": 25, "issued": 5, "descriptor": "find-item", "reply": "exit;", "command": "exit"}
+{"job": 1, "issued": 27, "descriptor": "patrol", "reply": "write stdout fly back-block;", "command": "write stdout fly back-block"}
+{"job": 1, "issued": 28, "descriptor": "patrol", "reply": "read stdin;", "command": "read stdin"}
+{"job": 29, "issued": 0, "descriptor": "fire-watch", "reply": "write stdout climb 100;", "command": "write stdout climb 100"}
+{"job": 29, "issued": 1, "descriptor": "fire-watch", "reply": "read stdin;", "command": "read stdin"}
+{"job": 29, "issued": 2, "descriptor": "fire-watch", "reply": "write stdout panorama;\n```", "command": "write stdout panorama"}
+{"job": 29, "issued": 3, "descriptor": "fire-watch", "reply": "read stdin;", "command": "read stdin"}
+{"job": 29, "issued": 4, "descriptor": "fire-watch", "reply": "write farmer kind=fire where=north-west photo=p-0005 detail=smoke-12km-north-west;", "command": "write farmer kind=fire where=north-west photo=p-0005 detail=smoke-12km-north-west"}
+{"job": 29, "issued": 5, "descriptor": "fire-watch", "reply": "write stdout climb 40;", "command": "write stdout climb 40"}
+{"job": 29, "issued": 6, "descriptor": "fire-watch", "reply": "read stdin;", "command": "read stdin"}
+{"job": 29, "issued": 7, "descriptor": "fire-watch", "reply": "exit;", "command": "exit"}
+{"job": 1, "issued": 29, "descriptor": "patrol", "reply": "write stdout fly back-block;", "command": "write stdout fly back-block"}
+{"job": 1, "issued": 30, "descriptor": "patrol", "reply": "read stdin;", "command": "read stdin"}
+{"job": 1, "issued": 31, "descriptor": "patrol", "reply": "write stdout observe;", "command": "write stdout observe"}
+{"job": 1, "issued": 32, "descriptor": "patrol", "reply": "read stdin;", "command": "read stdin"}
+{"job": 1, "issued": 33, "descriptor": "patrol", "reply": "write farmer kind=trough where=back-block photo=none detail=trough-at-8%;", "command": "write farmer kind=trough where=back-block photo=none detail=trough-at-8%"}
+{"job": 1, "issued": 34, "descriptor": "patrol", "reply": "write livestock back-block counted=24 expected=22;", "command": "write livestock back-block counted=24 expected=22"}
+{"job": 35, "issued": 0, "descriptor": "livestock-check", "reply": "write stdout fly back-block;", "command": "write stdout fly back-block"}
+{"job": 35, "issued": 1, "descriptor": "livestock-check", "reply": "read stdin;", "command": "read stdin"}
+{"job": 35, "issued": 2, "descriptor": "livestock-check", "reply": "write stdout zoom cattle;", "command": "write stdout zoom cattle"}
+{"job": 35, "issued": 3, "descriptor": "livestock-check", "reply": "read stdin;", "command": "read stdin"}
+{"job": 35, "issued": 4, "descriptor": "livestock-check", "reply": "write farmer kind=livestock where=back-block photo=p-0006 detail=two-calves;", "command": "write farmer kind=livestock where=back-block photo=p-0006 detail=two-calves"}
+{"job": 35, "issued": 5, "descriptor": "livestock-check", "reply": "write tools house=12 north-flat=40 ridge=25 creek=30 dam=18 back-block=24;", "command": "write tools house=12 north-flat=40 ridge=25 creek=30 dam=18 back-block=24"}
+{"job": 35, "issued": 6, "descriptor": "livestock-check", "reply": "exit;", "command": "exit"}
+{"job": 1, "issued": 35, "descriptor": "patrol", "reply": "write stdout return;", "command": "write stdout return"}
+{"job": 1, "issued": 36, "descriptor": "patrol", "reply": "read stdin;", "command": "read stdin"}
+{"job": 1, "issued": 37, "descriptor": "patrol", "reply": "exit;", "command": "exit"}

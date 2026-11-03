@@ -1,0 +1,8 @@
+# The farm's one drone: an ordinary camera for the patrol, a zoom for plates and calves,
+# and thermal and 360-degree cameras for smoke. Every behaviour flies it; the most
+# urgent one has it, and the others wait their turn.
+platform: kestrel
+body:
+  locomotion: rotor
+  sensors: [rgb, zoom, thermal, panorama]
+location: shed

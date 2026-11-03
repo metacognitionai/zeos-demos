@@ -29,6 +29,7 @@ Here are some example demos:
 | [`zeos-chat`](zeos-chat) | A chatbot in a browser with no chat loop: the conversation is a job, and waiting, interruption and stopping are the kernel's. |
 | [`zeos-blocks`](zeos-blocks) | Blocks world from a typed sentence, with a hand that can move a block mid-plan and a planner that carries on without being told. |
 | [`zeos-stretch`](zeos-stretch) | One robot shared by four behaviours: clearing a table, a coffee, its delivery and a smoke alarm. The body is a lease the kernel moves by priority, and a simulated VLA carries out the commands. |
+| [`zeos-farm-drone`](zeos-farm-drone) | A drone patrolling a cattle farm, shared by five behaviours: the patrol, a closer look at a vehicle, a herd count, a search the farmer asks for in words, and a fire. Every command passes a flight-rules gate the model cannot talk past. |
 
 ## Example of running a demo
 

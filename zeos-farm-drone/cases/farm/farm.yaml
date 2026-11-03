@@ -1,0 +1,14 @@
+# What is really on the farm when the morning starts. This is the simulator's, not the
+# kernel's: a behaviour learns any of it only by flying there and looking.
+paddocks:
+  house: {cattle: 12, trough: 90}
+  north-flat: {cattle: 40, trough: 75}
+  # The trough on the ridge is leaking.
+  ridge: {cattle: 25, trough: 20}
+  creek: {cattle: 30, trough: 85}
+  dam: {cattle: 18, trough: 70}
+  # Two calves were born overnight: 24 head where the farmer expects 22.
+  back-block: {cattle: 24, trough: 80, calves: 2}
+# Where things are that the farmer may ask about.
+items:
+  motorbike: north-flat

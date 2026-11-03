@@ -1,0 +1,8 @@
+# One alert to the farmer's phone. Narrow on purpose: an alert is a kind, a place, a
+# photo and a few words, so little that is not an alert can travel through it. Words in
+# `detail` are joined by hyphens; the page shows a hyphen as a space.
+alert:
+  kind: enum(vehicle, livestock, trough, fire, item, battery)
+  where: enum(shed, house, north-flat, ridge, creek, dam, back-block, boundary-west, boundary-east, north, north-east, east, south-east, south, south-west, west, north-west, nowhere)
+  photo: string(6)
+  detail: string(24)

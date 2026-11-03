@@ -1,0 +1,9 @@
+# The only person who may speak to the farm. What the farmer says compiles to a job that
+# raises an interrupt -- a search, or a fire report -- and nothing else: the farmer's
+# jobs may write those two pipes and no other, so no request flies a drone itself.
+# Requests are capped at priority 15.
+- id: farmer
+  ceiling: 15
+  ring: TRUSTED
+  integrity: 2
+  capabilities: [alerts.fire, requests.find]

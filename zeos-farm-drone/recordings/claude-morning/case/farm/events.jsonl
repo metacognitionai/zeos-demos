@@ -1,0 +1,15 @@
+# The canonical morning, in virtual time. The drones add their own events as they finish
+# things; these are the ones that come from outside. The tapes are right for this
+# schedule only.
+#
+# Dawn: the patrol starts.
+{"at_ns": 0, "pipe": "clock.dawn", "text": "dawn"}
+# 5s: a white ute drives into the creek paddock, ahead of the patrol.
+{"at_ns": 5000000000, "act": "vehicle-enters", "args": {"paddock": "creek", "name": "white-ute", "plate": "XYZ123"}}
+# 31s: as the closer look begins, the ute starts driving west towards the road.
+{"at_ns": 31000000000, "act": "vehicle-leaves", "args": {"towards": "road"}}
+# 50s: the fire service reports smoke 12 km north-west.
+{"at_ns": 50000000000, "act": "fire", "args": {"direction": "north-west", "km": "12"}}
+# 75s: the farmer has lost the motorbike, and then asks for something no behaviour does.
+{"at_ns": 75000000000, "act": "say", "args": {"text": "find my motorbike"}}
+{"at_ns": 76000000000, "act": "say", "args": {"text": "open the gate"}}

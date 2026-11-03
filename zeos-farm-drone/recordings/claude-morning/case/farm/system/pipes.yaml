@@ -1,0 +1,138 @@
+# Every channel on the farm. Ring and principal are declared here, by the site, and
+# never claimed by what arrives.
+
+# -- the drones -------------------------------------------------------------------
+#
+# The drone's command channel, written by whichever behaviour is flying it and drained
+# by the simulator, which knows from fleet.embodied who that is. Every write to it passes
+# the flight-rules gate first (system/gates.yaml).
+- name: drone.command
+  ring: TRUSTED
+  principal: device
+  sink: true
+  capacity: 32
+
+# One answer channel per behaviour, so the drone's answer wakes the behaviour that asked
+# and nobody else. A behaviour binds its own as `stdin`.
+- name: drone.done.patrol
+  ring: TRUSTED
+  principal: device
+  device: true
+  capacity: 64
+- name: drone.done.vehicle
+  ring: TRUSTED
+  principal: device
+  device: true
+  capacity: 64
+- name: drone.done.livestock
+  ring: TRUSTED
+  principal: device
+  device: true
+  capacity: 64
+- name: drone.done.fire
+  ring: TRUSTED
+  principal: device
+  device: true
+  capacity: 64
+- name: drone.done.find
+  ring: TRUSTED
+  principal: device
+  device: true
+  capacity: 64
+- name: drone.done.battery
+  ring: TRUSTED
+  principal: device
+  device: true
+  capacity: 64
+
+# Where the drone is and how high. Actuators, so a report latches into world state;
+# the simulator attributes each report to the behaviour whose command caused it.
+- name: report.kestrel.position
+  ring: TRUSTED
+  principal: device
+  world_object: kestrel.position
+- name: report.kestrel.altitude
+  ring: TRUSTED
+  principal: device
+  world_object: kestrel.altitude
+
+# -- the flight-rules gate --------------------------------------------------------
+#
+# The kernel writes each held command to `requests` and takes the guard's answer from
+# `verdicts`.
+- name: gates.flight-rules.requests
+  ring: TRUSTED
+  principal: kernel
+  capacity: 32
+- name: gates.flight-rules.verdicts
+  ring: TRUSTED
+  principal: peer_job
+  capacity: 32
+
+# -- what the patrol finds ----------------------------------------------------------
+#
+# Written by the patrol, each bound to a vector: a finding is an interrupt, and the
+# patrol never names the behaviour that answers it.
+- name: findings.vehicle
+  ring: TRUSTED
+  principal: peer_job
+  capacity: 64
+- name: findings.livestock
+  ring: TRUSTED
+  principal: peer_job
+  capacity: 64
+
+# How many head the farmer expects in each paddock. Written by the livestock check when
+# calves explain a count; read by every patrol round after it.
+- name: herd.expected.set
+  ring: TRUSTED
+  principal: peer_job
+  world_object: herd.expected
+  capacity: 64
+
+# -- the outside world ---------------------------------------------------------------
+- name: clock.dawn
+  ring: TRUSTED
+  principal: device
+  device: true
+  capacity: 16
+# A fire nearby: written by the fire service's feed, and by the farmer reporting one.
+# Either way it is the same interrupt, and alarms behind a running watch are one.
+- name: alerts.fire
+  ring: TRUSTED
+  principal: device
+  capacity: 16
+# The drone's own battery monitor: written when the charge falls to critical, whether it
+# ran down in flight or a cell failed. Alarms behind a running return are one.
+- name: alerts.battery
+  ring: TRUSTED
+  principal: device
+  capacity: 16
+
+# Something the farmer wants found. Written by the job the farmer's words compile to,
+# and bound to a queued vector, so two requests are two searches, one after the other.
+- name: requests.find
+  ring: TRUSTED
+  principal: peer_job
+  capacity: 32
+
+# -- the farmer -------------------------------------------------------------------------
+#
+# What the farmer types on their phone is compiled, not landed: a front door. Who spoke
+# comes from the pipe (system/principals.yaml), never from the words.
+- name: farmer.says
+  ring: TRUSTED
+  principal: user
+  utterance_source: farmer
+  reply_to: farmer.replies
+- name: farmer.replies
+  ring: TRUSTED
+  principal: user
+  sink: true
+  capacity: 64
+# What the drones report to the farmer: one alert per write, in the `alert` schema.
+- name: farmer.alerts
+  ring: TRUSTED
+  principal: user
+  sink: true
+  capacity: 128

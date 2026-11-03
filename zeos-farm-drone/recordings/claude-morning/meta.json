@@ -1,0 +1,8 @@
+{
+  "case": "cases/farm",
+  "machine": "claude",
+  "model": "claude-opus-5-5",
+  "device": "sim",
+  "speed": 1.0,
+  "started": "2026-11-03T09:43:53"
+}
