@@ -1,17 +1,14 @@
 """The model, asked for content and nothing else.
 
-This used to be a ``CommandSource``: it answered the kernel's decodes, so the model chose
-when to read, when to write and when to record the topic, at one API call each. That put
-the model in the scheduler's chair -- the opposite of what ZEOS claims -- and made a
-one-line answer cost four round trips and seven seconds.
+This is not a ``CommandSource``. It sits behind a pipe and is asked one question: *given
+this persona and this conversation, what would you say?* The control flow is Python, the
+scheduling is the kernel's, and this is the part neither of them can do.
 
-Now it sits behind a pipe and is asked one question: *given this persona and this
-conversation, what would you say?* The control flow is Python, the scheduling is the
-kernel's, and this is the part neither of them can do.
-
-What went with the change: the syscall ABI rendered as prose, the pattern a reply was
-searched with, and `malformed_request` as a fault met in practice. Nothing here can
-produce a malformed command any more, because nothing here produces commands.
+A model answering the kernel's decodes would choose when to read, when to write and when
+to record the topic, at one API call each: the model in the scheduler's chair, which is
+the opposite of what ZEOS claims, and several round trips for a one-line answer. Asked for
+content only, it needs no syscall ABI rendered as prose and no pattern to search its reply
+with, and it cannot produce a malformed command, because it produces no commands.
 """
 
 from __future__ import annotations
