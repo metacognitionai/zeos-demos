@@ -272,8 +272,8 @@ def converse(ctx: JobContext) -> Iterator[str]:
 def acknowledge(ctx: JobContext) -> Iterator[str]:
     """Both handlers, and they are the same program: exist, then stop.
 
-    `new-message` and `cancel` do their whole work in their frontmatter -- one returns to
-    the conversation and one replaces it. Being dispatched is what took the machine away
+    `new-message` and `cancel` do their whole work in their frontmatter, and both return to
+    whatever they interrupted. Being dispatched is what took the machine away
     from whatever was running, and that is the entire job. A command here would be seconds
     of a person's time spent saying so.
     """
