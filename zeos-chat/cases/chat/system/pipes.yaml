@@ -121,10 +121,9 @@
 #
 # **One actuator, one world object.** An actuator write latches into exactly one object,
 # so one pipe cannot maintain two of them -- which is why there are two pipes here and
-# not one `actuators.session`. An earlier draft of this case declared
-# `writes: [session.topic]` on `converse` with no actuator to write it through, and
-# mapped `session.pending_task` as well, which nothing in the case could set. The topic is `converse`'s to write; the
-# pending task belongs to `deep-research`, through an actuator of its own.
+# not one `actuators.session`. The topic is `converse`'s to write; the pending task
+# belongs to `deep-research`, through an actuator of its own. A world object with no
+# actuator behind it is one nothing in the case can set.
 
 - name: actuators.topic
   ring: TRUSTED
